@@ -28,6 +28,7 @@ class TorrentEngine:
         self.torrents = {}
         self.running = False
         self.on_alert = on_alert
+        self._files_ready = []
 
     def start(self, port=6881, download_rate=0, upload_rate=0):
         settings = {
@@ -61,6 +62,7 @@ class TorrentEngine:
                 entry = self.torrents.get(str(alert.handle.info_hash()))
                 if entry:
                     entry.name = alert.handle.name()
+                    self._files_ready.append(entry.id)
         elif isinstance(alert, lt.torrent_error_alert):
             with self.lock:
                 entry = self.torrents.get(str(alert.handle.info_hash()))
@@ -73,7 +75,7 @@ class TorrentEngine:
         if self.on_alert:
             self.on_alert(alert)
 
-    def add_torrent_file(self, path, save_path, paused=False):
+    def add_torrent_file(self, path, save_path, priorities=None, paused=False):
         info = lt.torrent_info(path)
         params = self._resume_params(info.info_hash())
         if params is None:
@@ -82,6 +84,8 @@ class TorrentEngine:
         else:
             params.ti = info
         params.save_path = save_path
+        if priorities is not None:
+            params.file_priorities = list(priorities)
         params.flags &= ~lt.torrent_flags.auto_managed
         if not paused:
             params.flags &= ~lt.torrent_flags.paused
@@ -103,6 +107,36 @@ class TorrentEngine:
             params.flags |= lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
         return self._register(handle, save_path, "magnet")
+
+    def file_list_from_file(self, path):
+        info = lt.torrent_info(path)
+        return [(info.files().file_path(i), info.files().file_size(i)) for i in range(info.num_files())]
+
+    def file_list(self, torrent_id):
+        with self.lock:
+            entry = self.torrents.get(torrent_id)
+        if not entry:
+            return None
+        try:
+            tf = entry.handle.torrent_file()
+        except RuntimeError:
+            return None
+        if tf is None:
+            return None
+        files = tf.files()
+        return [(files.file_path(i), files.file_size(i)) for i in range(files.num_files())]
+
+    def set_file_priorities(self, torrent_id, priorities):
+        with self.lock:
+            entry = self.torrents.get(torrent_id)
+        if entry:
+            entry.handle.prioritize_files([int(p) for p in priorities])
+
+    def take_files_ready(self):
+        with self.lock:
+            ready = list(self._files_ready)
+            self._files_ready.clear()
+        return ready
 
     def _resume_params(self, info_hash):
         resume_file = os.path.join(self.resume_dir, "%s.fastresume" % str(info_hash))

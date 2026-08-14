@@ -1,7 +1,17 @@
+import tkinter as tk
+
 import customtkinter as ctk
 from tkinter import filedialog
 
 from ui import theme
+
+
+def _fmt_bytes(n):
+    n = float(n or 0)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return "%.1f %s" % (n, unit)
+        n /= 1024
 
 
 class MagnetDialog(ctk.CTkToplevel):
@@ -31,10 +41,68 @@ class MagnetDialog(ctk.CTkToplevel):
         self.bind("<Escape>", lambda e: self.destroy())
         self.magnet.focus_set()
 
+        try:
+            clip = self.clipboard_get().strip()
+            if "magnet:" in clip:
+                self.magnet.insert("1.0", clip)
+        except tk.TclError:
+            pass
+
     def _ok(self):
         self.result = self.magnet.get("1.0", "end").strip()
         if self.result:
             self.destroy()
+
+
+class FileSelectDialog(ctk.CTkToplevel):
+    def __init__(self, parent, title, files):
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("560x480")
+        self.minsize(480, 320)
+        self.transient(parent)
+        self.grab_set()
+        self.result = None
+        self._files = list(files)
+        self._vars = []
+
+        frame = ctk.CTkFrame(self, fg_color=theme.PANEL, corner_radius=12)
+        frame.pack(fill="both", expand=True, padx=16, pady=16)
+
+        head = ctk.CTkFrame(frame, fg_color="transparent")
+        head.pack(fill="x", pady=(0, 8))
+        ctk.CTkLabel(head, text="Select files to download", font=theme.font(15, "bold")).pack(side="left")
+        ctk.CTkLabel(head, text="%d files · %s" % (len(files), _fmt_bytes(sum(f[1] for f in files))), font=theme.font(11), text_color=theme.TEXT_DIM).pack(side="right")
+
+        self.box = ctk.CTkScrollableFrame(frame, fg_color=theme.BG, corner_radius=8)
+        self.box.pack(fill="both", expand=True)
+        self.box.grid_columnconfigure(0, weight=1)
+
+        for name, size in self._files:
+            var = tk.BooleanVar(value=True)
+            self._vars.append(var)
+            row = ctk.CTkFrame(self.box, fg_color="transparent")
+            row.grid(sticky="ew", pady=1)
+            ctk.CTkCheckBox(row, text=name, variable=var, font=theme.font(12), checkbox_width=20, checkbox_height=20, fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER).pack(side="left", fill="x", expand=True)
+            ctk.CTkLabel(row, text=_fmt_bytes(size), font=theme.font(11), text_color=theme.TEXT_DIM).pack(side="right", padx=(8, 8))
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=(12, 0))
+        ctk.CTkButton(btn_frame, text="Select All", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=lambda: self._set_all(True), width=92).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Select None", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=lambda: self._set_all(False), width=92).pack(side="left", padx=6)
+        ctk.CTkButton(btn_frame, text="Cancel", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=self.destroy, width=90).pack(side="right", padx=6)
+        ctk.CTkButton(btn_frame, text="OK", fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, command=self._ok, width=90).pack(side="right")
+
+        self.bind("<Return>", lambda e: self._ok())
+        self.bind("<Escape>", lambda e: self.destroy())
+
+    def _set_all(self, value):
+        for var in self._vars:
+            var.set(value)
+
+    def _ok(self):
+        self.result = [1 if var.get() else 0 for var in self._vars]
+        self.destroy()
 
 
 class SettingsDialog(ctk.CTkToplevel):

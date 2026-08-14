@@ -11,10 +11,10 @@ from PIL import Image
 from core.config import app_data_dir, load_settings, save_settings
 from core.engine import TorrentEngine
 from ui import theme
-from ui.dialogs import AboutDialog, MagnetDialog, SettingsDialog
+from ui.dialogs import AboutDialog, FileSelectDialog, MagnetDialog, SettingsDialog
 from updater import UpdateChecker
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 GITHUB_URL = "https://github.com/chamarawickramarathne-spec/VortexTorrent"
 
 
@@ -63,6 +63,7 @@ class MainWindow(ctk.CTk):
         self._last_snapshot = {}
         self._row_widgets = {}
         self._selected_id = None
+        self._file_dialog_shown = set()
         self._build_header()
         self._build_toolbar()
         self._build_table()
@@ -185,7 +186,19 @@ class MainWindow(ctk.CTk):
             return
         os.makedirs(self.settings["download_dir"], exist_ok=True)
         try:
-            entry = self.engine.add_torrent_file(path, self.settings["download_dir"])
+            files = self.engine.file_list_from_file(path)
+        except Exception as exc:
+            messagebox.showerror("Add failed", str(exc), parent=self)
+            return
+        priorities = None
+        if len(files) > 1:
+            dialog = FileSelectDialog(self, os.path.basename(path), files)
+            self.wait_window(dialog)
+            if dialog.result is None:
+                return
+            priorities = dialog.result
+        try:
+            entry = self.engine.add_torrent_file(path, self.settings["download_dir"], priorities=priorities)
         except Exception as exc:
             messagebox.showerror("Add failed", str(exc), parent=self)
             return
@@ -203,6 +216,25 @@ class MainWindow(ctk.CTk):
             messagebox.showerror("Add failed", str(exc), parent=self)
             return
         self._create_row(entry.id)
+
+    def _show_file_selection(self, torrent_id):
+        if torrent_id in self._file_dialog_shown:
+            return
+        files = self.engine.file_list(torrent_id)
+        if files is None:
+            return
+        self._file_dialog_shown.add(torrent_id)
+        if len(files) <= 1:
+            return
+        snap = self._last_snapshot.get(torrent_id)
+        title = (snap or {}).get("name") or "Select files"
+        dialog = FileSelectDialog(self, title, files)
+        self.wait_window(dialog)
+        if dialog.result is not None:
+            try:
+                self.engine.set_file_priorities(torrent_id, dialog.result)
+            except Exception as exc:
+                messagebox.showerror("Selection failed", str(exc), parent=self)
 
     def _create_row(self, torrent_id):
         if torrent_id in self._row_widgets:
@@ -284,6 +316,9 @@ class MainWindow(ctk.CTk):
     def _refresh(self):
         snapshots = self.engine.snapshot()
         self._last_snapshot = {s["id"]: s for s in snapshots}
+        for tid in self.engine.take_files_ready():
+            if tid not in self._file_dialog_shown:
+                self._show_file_selection(tid)
         active_ids = set(self._last_snapshot.keys())
         for tid in set(self._row_widgets.keys()) - active_ids:
             self._row_widgets.pop(tid)["row"].destroy()

@@ -4,7 +4,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.2.0 (mod 3)
+- **Version**: 1.3.0 (mod 4)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
 - **Python**: 3.13.9 64-bit (venv `.venv`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
@@ -17,7 +17,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - `core/models.py` - TorrentEntry model
 - `core/config.py` - settings load/save (JSON in `%APPDATA%\VortexTorrent\settings.json`), default download dir
 - `ui/main_window.py` - main window (CTk): header (title + version + Update button), toolbar, torrent rows w/ progress bars, context menu, keyboard shortcuts, update prompts
-- `ui/dialogs.py` - CTk magnet/settings/about dialogs (Settings has download limit only)
+- `ui/dialogs.py` - CTk magnet/settings/about dialogs + FileSelectDialog (checkbox list, Select All/None, returns 1/0 priorities). MagnetDialog auto-pastes a `magnet:` link from the clipboard on open.
 - `ui/theme.py` - shared dark color palette + font helpers
 - `updater.py` - GitHub release check/download
 - `media/` - logo.png, icon.ico, generate_media.py
@@ -29,6 +29,13 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - On `torrent_finished_alert` the torrent is paused (no seeding).
 - `snapshot()` reports `upload_rate` from `st.upload_payload_rate` (plain `st.upload_rate` reports spurious non-payload bytes in 2.1.1).
 - Settings dialog has NO upload limit; `apply_speed_limits(download_rate)` only.
+
+## File Selection (mod 4)
+- `.torrent` add: file list read via `engine.file_list_from_file(path)` BEFORE adding; FileSelectDialog shown (skipped for single-file); priorities applied at add time via `params.file_priorities` so skipped files never download. Cancel = do not add.
+- Magnet add: torrent added immediately (must stay unpaused or metadata is never fetched); on `metadata_received_alert` the engine appends the id to a thread-safe `_files_ready` queue. UI drains it in `_refresh` (main thread) and opens FileSelectDialog. Priorities applied via `handle.prioritize_files()` (async, verify after ~1s). Cancel = keep all files.
+- `engine.file_list(torrent_id)` returns `None` until metadata arrives; uses `handle.torrent_file().files()`.
+- `params.file_priorities` and `handle.prioritize_files` both verified working in libtorrent 2.1.1. `handle.file_priorities()`/`prioritize_files` are deprecated warnings but functional.
+- Do NOT touch Tk from the engine alert thread; UI polls `take_files_ready()` instead of a callback.
 
 ## Key Decisions
 - libtorrent 2.x API: `lt.add_torrent_params()`, `session.add_torrent()`, `lt.add_magnet_uri()`. PEX/LSD are per-torrent flags, NOT session settings (`enable_pex` throws KeyError).
@@ -49,6 +56,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - **mod 1 (1.0.0)**: Initial release - engine, UI (ttk), updater, media, installer (PyInstaller + Inno Setup).
 - **mod 2 (1.1.0)**: Fixed pause/resume/remove/delete bug (`_selected_ids`), new modern dark customtkinter UI, torrent rows w/ progress bars, context menu, keyboard shortcuts, visible update feature (Help menu + About), resume-data bencode fix, `save_path` in snapshot.
 - **mod 3 (1.2.0)**: Removed menu bar; header now shows version next to title (clickable -> About) + Update button; forced download-only mode (no upload/seeding: unchoke_slots_limit=0, num_optimistic_unchoke_slots=0, active_seeds=0, pause on finish); removed Up column + status bar upload; removed upload limit from Settings; snapshot upload_rate uses upload_payload_rate.
+- **mod 4 (1.3.0)**: MagnetDialog auto-pastes a `magnet:` link from clipboard on open; added file selection - `.torrent` shows FileSelectDialog before add (priorities via `params.file_priorities`), magnet shows FileSelectDialog automatically when metadata arrives (priorities via `handle.prioritize_files`); single-file torrents skip the dialog; engine gains `file_list_from_file`, `file_list`, `set_file_priorities`, `take_files_ready`.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`
