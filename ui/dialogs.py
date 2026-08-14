@@ -66,13 +66,6 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkEntry(limits_row, textvariable=self.down_var, width=90, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
         ctk.CTkLabel(limits_row, text="0 = unlimited").pack(side="right", padx=(0, 10))
 
-        limits_row2 = ctk.CTkFrame(frame, fg_color="transparent")
-        limits_row2.pack(fill="x", pady=(4, 4))
-        ctk.CTkLabel(limits_row2, text="Upload limit (KB/s)", font=theme.font(12)).pack(side="left")
-        self.up_var = ctk.StringVar(value=str(self.settings["upload_rate"] // 1024))
-        ctk.CTkEntry(limits_row2, textvariable=self.up_var, width=90, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
-        ctk.CTkLabel(limits_row2, text="0 = unlimited").pack(side="right", padx=(0, 10))
-
         port_row = ctk.CTkFrame(frame, fg_color="transparent")
         port_row.pack(fill="x", pady=(8, 4))
         ctk.CTkLabel(port_row, text="Listen port", font=theme.font(12)).pack(side="left")
@@ -93,7 +86,6 @@ class SettingsDialog(ctk.CTkToplevel):
         try:
             self.settings["download_dir"] = self.dir_var.get().strip()
             self.settings["download_rate"] = int(self.down_var.get()) * 1024
-            self.settings["upload_rate"] = int(self.up_var.get()) * 1024
             self.settings["port"] = int(self.port_var.get())
         except ValueError:
             import tkinter as tk

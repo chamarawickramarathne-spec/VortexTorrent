@@ -44,5 +44,5 @@ echo [WARN] ISCC.exe not found at %ISCC% - skipping installer.
 echo.
 echo Build complete.
 echo exe:       dist\VortexTorrent\VortexTorrent.exe
-echo installer: installer\VortexTorrent-Setup-1.1.0.exe
+echo installer: installer\VortexTorrent-Setup-1.2.0.exe
 endlocal

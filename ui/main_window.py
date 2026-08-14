@@ -14,7 +14,7 @@ from ui import theme
 from ui.dialogs import AboutDialog, MagnetDialog, SettingsDialog
 from updater import UpdateChecker
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 GITHUB_URL = "https://github.com/chamarawickramarathne-spec/VortexTorrent"
 
 
@@ -63,7 +63,6 @@ class MainWindow(ctk.CTk):
         self._last_snapshot = {}
         self._row_widgets = {}
         self._selected_id = None
-        self._build_menu()
         self._build_header()
         self._build_toolbar()
         self._build_table()
@@ -73,7 +72,7 @@ class MainWindow(ctk.CTk):
         self.engine.start(
             port=self.settings["port"],
             download_rate=self.settings["download_rate"],
-            upload_rate=self.settings["upload_rate"],
+            upload_rate=0,
         )
         self.bind("<Control-o>", lambda e: self._add_torrent_file())
         self.bind("<Control-m>", lambda e: self._add_magnet())
@@ -83,23 +82,6 @@ class MainWindow(ctk.CTk):
         self._refresh_after_id = None
         self._closing = False
         self.after(300, self._refresh)
-
-    def _build_menu(self):
-        menubar = tk.Menu(self)
-        file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="Add Torrent File...", command=self._add_torrent_file, accelerator="Ctrl+O")
-        file_menu.add_command(label="Add Magnet Link...", command=self._add_magnet, accelerator="Ctrl+M")
-        file_menu.add_separator()
-        file_menu.add_command(label="Settings...", command=self._open_settings)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self._on_close)
-        menubar.add_cascade(label="File", menu=file_menu)
-
-        help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="Check for Updates", command=self._manual_update_check)
-        help_menu.add_command(label="About", command=self._open_about)
-        menubar.add_cascade(label="Help", menu=help_menu)
-        self.configure(menu=menubar)
 
     def _build_header(self):
         header = ctk.CTkFrame(self, fg_color=theme.PANEL, corner_radius=0, height=64)
@@ -113,8 +95,16 @@ class MainWindow(ctk.CTk):
 
         title_block = ctk.CTkFrame(header, fg_color="transparent")
         title_block.pack(side="left")
-        ctk.CTkLabel(title_block, text="Vortex Torrent", font=theme.font(18, "bold"), text_color=theme.TEXT).pack(anchor="w")
+        title_row = ctk.CTkFrame(title_block, fg_color="transparent")
+        title_row.pack(anchor="w")
+        ctk.CTkLabel(title_row, text="Vortex Torrent", font=theme.font(18, "bold"), text_color=theme.TEXT).pack(side="left")
+        version_label = ctk.CTkLabel(title_row, text="v%s" % APP_VERSION, font=theme.font(11, "bold"), text_color=theme.CYAN, cursor="hand2")
+        version_label.pack(side="left", padx=(8, 0), pady=(3, 0))
+        version_label.bind("<Button-1>", lambda e: self._open_about())
         ctk.CTkLabel(title_block, text="Fast, free BitTorrent downloader", font=theme.font(11), text_color=theme.TEXT_DIM).pack(anchor="w")
+
+        self.btn_update = ctk.CTkButton(header, text="Update", font=theme.font(12, "bold"), fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, command=self._manual_update_check, height=30, width=90)
+        self.btn_update.pack(side="right", padx=16, pady=17)
 
     def _build_toolbar(self):
         bar = ctk.CTkFrame(self, fg_color="transparent")
@@ -151,11 +141,10 @@ class MainWindow(ctk.CTk):
             ("pct", "%", 0),
             ("state", "Status", 0),
             ("down", "Down", 0),
-            ("up", "Up", 0),
             ("peers", "Seeds/Peers", 0),
             ("eta", "ETA", 0),
         ]
-        widths = {"size": 90, "pct": 60, "state": 90, "down": 90, "up": 90, "peers": 110, "eta": 70}
+        widths = {"size": 90, "pct": 60, "state": 90, "down": 90, "peers": 110, "eta": 70}
         for idx, (key, text, weight) in enumerate(cols):
             header.grid_columnconfigure(idx, weight=weight)
             anchor = "w" if idx == 0 else "center"
@@ -236,18 +225,16 @@ class MainWindow(ctk.CTk):
         state_label.grid(row=0, column=3, padx=4)
         down_label = ctk.CTkLabel(row, text="", font=theme.font(11), text_color=theme.SUCCESS, width=70)
         down_label.grid(row=0, column=4, padx=4)
-        up_label = ctk.CTkLabel(row, text="", font=theme.font(11), text_color=theme.CYAN, width=70)
-        up_label.grid(row=0, column=5, padx=4)
         peers_label = ctk.CTkLabel(row, text="", font=theme.font(11), text_color=theme.TEXT_DIM, width=80)
-        peers_label.grid(row=0, column=6, padx=4)
+        peers_label.grid(row=0, column=5, padx=4)
         eta_label = ctk.CTkLabel(row, text="", font=theme.font(11), text_color=theme.TEXT_DIM, width=60)
-        eta_label.grid(row=0, column=7, padx=8)
+        eta_label.grid(row=0, column=6, padx=8)
 
         progress = ctk.CTkProgressBar(row, height=6, fg_color=theme.BORDER, progress_color=theme.ACCENT, corner_radius=3)
-        progress.grid(row=1, column=0, columnspan=8, sticky="ew", padx=12, pady=(0, 8))
+        progress.grid(row=1, column=0, columnspan=7, sticky="ew", padx=12, pady=(0, 8))
         progress.set(0)
 
-        for widget in (row, name_label, size_label, pct_label, state_label, down_label, up_label, peers_label, eta_label, progress):
+        for widget in (row, name_label, size_label, pct_label, state_label, down_label, peers_label, eta_label, progress):
             widget.bind("<Button-1>", lambda e, tid=torrent_id: self._select_row(tid, e))
         row.bind("<Button-3>", lambda e, tid=torrent_id: self._show_context_menu(tid, e))
         row.bind("<Double-Button-1>", lambda e, tid=torrent_id: self._open_folder(tid))
@@ -259,7 +246,6 @@ class MainWindow(ctk.CTk):
             "pct": pct_label,
             "state": state_label,
             "down": down_label,
-            "up": up_label,
             "peers": peers_label,
             "eta": eta_label,
             "progress": progress,
@@ -314,7 +300,6 @@ class MainWindow(ctk.CTk):
             w["pct"].configure(text="%.1f%%" % pct, text_color=theme.state_color(snap["state"]))
             w["state"].configure(text=snap["state"], text_color=theme.state_color(snap["state"]))
             w["down"].configure(text=fmt_rate(snap["download_rate"]))
-            w["up"].configure(text=fmt_rate(snap["upload_rate"]))
             w["peers"].configure(text="%d/%d" % (snap["seeds"], snap["peers"]))
             w["eta"].configure(text=fmt_eta(snap["eta"]))
             w["progress"].set(min(1.0, snap["progress"]))
@@ -325,10 +310,9 @@ class MainWindow(ctk.CTk):
             self.empty.grid()
 
         total_down = sum(s["download_rate"] for s in snapshots)
-        total_up = sum(s["upload_rate"] for s in snapshots)
         active_count = sum(1 for s in snapshots if s["state"] in ("Downloading", "Seeding"))
         self.status_left.configure(text="Active: %d  ·  Total: %d" % (active_count, len(snapshots)))
-        self.status_right.configure(text="%s ↓   %s ↑" % (fmt_rate(total_down), fmt_rate(total_up)))
+        self.status_right.configure(text="%s ↓" % fmt_rate(total_down))
         self._update_action_buttons()
         self._refresh_after_id = self.after(500, self._refresh)
 
@@ -375,7 +359,7 @@ class MainWindow(ctk.CTk):
         self.settings = dialog.result
         save_settings(self.settings)
         os.makedirs(self.settings["download_dir"], exist_ok=True)
-        self.engine.apply_speed_limits(self.settings["download_rate"], self.settings["upload_rate"])
+        self.engine.apply_speed_limits(self.settings["download_rate"])
         self.engine.apply_port(self.settings["port"])
 
     def _open_about(self):

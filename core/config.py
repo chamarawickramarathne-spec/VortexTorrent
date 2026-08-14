@@ -12,7 +12,6 @@ def app_data_dir():
 DEFAULT_SETTINGS = {
     "download_dir": os.path.join(os.path.expanduser("~"), "Downloads", "VortexTorrent"),
     "download_rate": 0,
-    "upload_rate": 0,
     "port": 6881,
 }
 

@@ -36,7 +36,9 @@ class TorrentEngine:
             "enable_upnp": True,
             "enable_natpmp": True,
             "active_downloads": 6,
-            "active_seeds": 6,
+            "active_seeds": 0,
+            "unchoke_slots_limit": 0,
+            "num_optimistic_unchoke_slots": 0,
             "download_rate_limit": int(download_rate),
             "upload_rate_limit": int(upload_rate),
             "alert_mask": lt.alert.category_t.error_notification
@@ -66,6 +68,8 @@ class TorrentEngine:
                     entry.error = alert.message()
         elif isinstance(alert, lt.save_resume_data_alert):
             self._persist_resume(alert)
+        elif isinstance(alert, lt.torrent_finished_alert):
+            alert.handle.pause()
         if self.on_alert:
             self.on_alert(alert)
 
@@ -78,8 +82,11 @@ class TorrentEngine:
         else:
             params.ti = info
         params.save_path = save_path
-        if paused:
-            params.flags = lt.torrent_flags.paused
+        params.flags &= ~lt.torrent_flags.auto_managed
+        if not paused:
+            params.flags &= ~lt.torrent_flags.paused
+        else:
+            params.flags |= lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
         return self._register(handle, save_path, "file")
 
@@ -89,8 +96,11 @@ class TorrentEngine:
         if params is None:
             params = parsed
         params.save_path = save_path
-        if paused:
-            params.flags = lt.torrent_flags.paused
+        params.flags &= ~lt.torrent_flags.auto_managed
+        if not paused:
+            params.flags &= ~lt.torrent_flags.paused
+        else:
+            params.flags |= lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
         return self._register(handle, save_path, "magnet")
 
@@ -149,11 +159,10 @@ class TorrentEngine:
         for h in handles:
             h.resume()
 
-    def apply_speed_limits(self, download_rate, upload_rate):
+    def apply_speed_limits(self, download_rate):
         self.session.apply_settings(
             {
                 "download_rate_limit": int(download_rate),
-                "upload_rate_limit": int(upload_rate),
             }
         )
 
@@ -202,7 +211,7 @@ class TorrentEngine:
                     "done": done,
                     "progress": progress,
                     "download_rate": st.download_rate,
-                    "upload_rate": st.upload_rate,
+                    "upload_rate": st.upload_payload_rate,
                     "peers": st.num_peers,
                     "seeds": st.num_seeds,
                     "state": state,
