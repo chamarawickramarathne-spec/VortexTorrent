@@ -71,29 +71,35 @@ class TorrentEngine:
 
     def add_torrent_file(self, path, save_path, paused=False):
         info = lt.torrent_info(path)
-        params = lt.add_torrent_params()
-        params.ti = info
+        params = self._resume_params(info.info_hash())
+        if params is None:
+            params = lt.add_torrent_params()
+            params.ti = info
+        else:
+            params.ti = info
         params.save_path = save_path
         if paused:
             params.flags = lt.torrent_flags.paused
-        self._load_resume(params, info.info_hash())
         handle = self.session.add_torrent(params)
         return self._register(handle, save_path, "file")
 
     def add_magnet(self, uri, save_path, paused=False):
-        params = lt.parse_magnet_uri(uri)
+        parsed = lt.parse_magnet_uri(uri)
+        params = self._resume_params(parsed.info_hash)
+        if params is None:
+            params = parsed
         params.save_path = save_path
         if paused:
             params.flags = lt.torrent_flags.paused
-        self._load_resume(params, params.info_hash)
         handle = self.session.add_torrent(params)
         return self._register(handle, save_path, "magnet")
 
-    def _load_resume(self, params, info_hash):
+    def _resume_params(self, info_hash):
         resume_file = os.path.join(self.resume_dir, "%s.fastresume" % str(info_hash))
-        if os.path.exists(resume_file):
-            with open(resume_file, "rb") as f:
-                params.resume_data = f.read()
+        if not os.path.exists(resume_file):
+            return None
+        with open(resume_file, "rb") as f:
+            return lt.read_resume_data(f.read())
 
     def _register(self, handle, save_path, source):
         entry = TorrentEntry(
@@ -165,8 +171,9 @@ class TorrentEngine:
             return
         ih = str(alert.handle.info_hash())
         target = os.path.join(self.resume_dir, "%s.fastresume" % ih)
+        data = lt.bencode(alert.resume_data)
         with open(target, "wb") as f:
-            f.write(alert.resume_data)
+            f.write(data)
 
     def snapshot(self):
         snap = []
@@ -201,6 +208,7 @@ class TorrentEngine:
                     "state": state,
                     "eta": eta_secs,
                     "error": entry.error,
+                    "save_path": entry.save_path,
                 }
             )
         return snap

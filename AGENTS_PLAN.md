@@ -29,9 +29,19 @@ Full-featured Windows desktop BitTorrent downloader, v1.0.0.
 - [x] Updater verified against GitHub release (v1.0.0 found, installer asset resolved).
 
 ## Decisions locked
-- Stack: Python 3.13.9 + libtorrent 2.1.1 + tkinter.
+- Stack: Python 3.13.9 + libtorrent 2.1.1 + customtkinter 6.0.0 (mod 2).
 - App name / repo: Vortex Torrent / VortexTorrent.
 - No database (JSON settings), no sql/ folder.
 - Update via GitHub releases.
+
+## Mod 2 (v1.1.0) - Bug fix + UI redesign
+- [x] Fixed `_selected_ids()` (was calling `tree.set(item, "#0")` -> TclError, broke pause/remove/delete).
+- [x] Rewrote UI with customtkinter dark theme (ui/theme.py palette, header, toolbar, row cards + progress bars, context menu, keyboard shortcuts, status bar, empty state).
+- [x] Added visible update feature: Help menu -> Check for Updates + About (version + repo link).
+- [x] Fixed resume-data save/load (lt.bencode on alert dict; lt.read_resume_data on load).
+- [x] Added save_path to snapshot() for Open Folder.
+- [x] Bumped VERSION/APP_VERSION/installer.iss to 1.1.0; requirements + Pillow.
+- [x] Smoke tested add/select/pause/remove/delete + real download via UI.
+- [ ] Rebuild exe + installer, release v1.1.0.
 
 Last updated: 2026-08-15

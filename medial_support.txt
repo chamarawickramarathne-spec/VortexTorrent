@@ -5,26 +5,26 @@ MEDIA SUPPORT - VORTEX TORRENT
 Vortex Torrent
 
 2. SHORT DESCRIPTION
-A fast, free desktop BitTorrent downloader for Windows. Add .torrent files or magnet links, manage multiple downloads, and control speeds - all in one clean app.
+A fast, free desktop BitTorrent downloader for Windows with a modern dark interface. Add .torrent files or magnet links, track live progress, and control your bandwidth - all in one clean app.
 
 3. LONG DESCRIPTION
-Vortex Torrent is a full-featured BitTorrent client for Windows built on the battle-tested libtorrent engine. It makes downloading legal, open content simple and fast. Add .torrent files or paste magnet links and Vortex handles the rest - discovering peers through DHT, peer exchange, and trackers so you get the fastest available speeds.
+Vortex Torrent is a full-featured BitTorrent client for Windows built on the battle-tested libtorrent engine, wrapped in a sleek modern dark interface. It makes downloading legal, open content simple and fast. Add .torrent files or paste magnet links and Vortex handles the rest - discovering peers through DHT, peer exchange, and trackers so you get the fastest available speeds.
 
-Manage multiple downloads at once with a live table showing progress, download and upload speed, seed/peer counts, and estimated time remaining. Pause, resume, or remove torrents individually, or delete files completely when a download is no longer needed. Speed limits and the listening port are configurable from a single settings dialog.
+A beautiful, dark-themed interface shows every download as a live card with a progress bar, download and upload speed, seed and peer counts, and estimated time remaining. Pause, resume, or remove torrents from the toolbar, a right-click menu, or handy keyboard shortcuts (Ctrl+O, Ctrl+M, Space, Delete). Double-click a finished download to open its folder instantly. Set your own download folder, speed limits, and listening port from a single settings dialog.
 
 Built with your privacy and control in mind, Vortex Torrent stores all configuration locally and includes a built-in updater that checks GitHub for new releases, so you always run the latest version. Everything is open source and free.
 
 4. FACEBOOK POST TEXT
-Meet Vortex Torrent - the fast, free BitTorrent client for Windows! Download open and legal content at top speed with DHT, peer exchange, and tracker support. Manage multiple downloads, pause and resume anytime, and control your bandwidth with simple speed limits. Clean interface, one-click magnet links, and automatic updates. 100% open source. Try it today!
+Meet Vortex Torrent 1.1 - a beautiful dark-themed BitTorrent downloader for Windows! Fast downloads with DHT and peer exchange, live progress cards, one-click pause/resume/remove, right-click menus, and keyboard shortcuts. Full speed control and automatic GitHub updates. Clean, modern, and 100% open source. Try it today!
 
 5. TAGS (10)
-#VortexTorrent #BitTorrent #TorrentClient #OpenSource #WindowsApp #DownloadManager #P2P #FreeSoftware #libtorrent #TechTools
+#VortexTorrent #BitTorrent #TorrentClient #OpenSource #WindowsApp #DownloadManager #P2P #FreeSoftware #libtorrent #DarkMode
 
 6. AI IMAGE PROMPTS (5)
 a) A swirling blue-violet vortex of data streams forming a funnel on a dark navy background, glowing magenta particles at the edges, sleek minimal tech style, high contrast, 4k.
-b) A modern desktop app window showing a torrent download table with glowing progress bars, floating on a dark gradient background with soft purple nebula lighting, product-shot style.
+b) A modern desktop app window with a dark navy theme showing torrent download cards with glowing violet progress bars, floating on a dark gradient background with soft purple nebula lighting, product-shot style.
 c) Abstract tornado made of circuit lines and binary code, cyan and purple gradient glow, centered on a deep black background, futuristic digital art, symmetrical composition.
-d) A user's hand adding a magnet link into a sleek dark-themed downloader interface, holographic UI elements, soft glow, cinematic lighting, tech aesthetic.
+d) A user's hand selecting a download card in a sleek dark-themed downloader interface, holographic UI elements, soft glow, cinematic lighting, tech aesthetic.
 e) Minimal app icon design, white vortex swirl on dark blue rounded square, subtle gradient shine, app store icon style, clean vector look.
 
-REGENERATED 2026-08-15 for v1.0.0
+REGENERATED 2026-08-15 for v1.1.0 (mod 2)

@@ -1,8 +1,10 @@
-import tkinter as tk
-from tkinter import ttk, filedialog
+import customtkinter as ctk
+from tkinter import filedialog
+
+from ui import theme
 
 
-class MagnetDialog(tk.Toplevel):
+class MagnetDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Add Magnet Link")
@@ -11,17 +13,19 @@ class MagnetDialog(tk.Toplevel):
         self.grab_set()
         self.result = None
 
-        frame = ttk.Frame(self, padding=12)
-        frame.pack(fill="both", expand=True)
+        frame = ctk.CTkFrame(self, fg_color=theme.PANEL, corner_radius=12)
+        frame.pack(fill="both", expand=True, padx=16, pady=16)
 
-        ttk.Label(frame, text="Magnet link:").grid(row=0, column=0, sticky="w")
-        self.magnet = tk.Text(frame, width=60, height=5, wrap="word")
-        self.magnet.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 8))
+        ctk.CTkLabel(frame, text="Paste a magnet link below", font=theme.font(15, "bold")).pack(anchor="w", pady=(0, 4))
+        ctk.CTkLabel(frame, text="Magnet link:", font=theme.font(12)).pack(anchor="w")
 
-        btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, columnspan=2, sticky="e")
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=4)
-        ttk.Button(btn_frame, text="Add", command=self._ok).pack(side="left")
+        self.magnet = ctk.CTkTextbox(frame, width=440, height=100, wrap="word", fg_color=theme.BG, border_color=theme.BORDER, border_width=1)
+        self.magnet.pack(fill="x", pady=(4, 12))
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(anchor="e")
+        ctk.CTkButton(btn_frame, text="Cancel", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=self.destroy, width=90).pack(side="left", padx=6)
+        ctk.CTkButton(btn_frame, text="Add", fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, command=self._ok, width=90).pack(side="left")
 
         self.bind("<Return>", lambda e: self._ok())
         self.bind("<Escape>", lambda e: self.destroy())
@@ -33,7 +37,7 @@ class MagnetDialog(tk.Toplevel):
             self.destroy()
 
 
-class SettingsDialog(tk.Toplevel):
+class SettingsDialog(ctk.CTkToplevel):
     def __init__(self, parent, settings):
         super().__init__(parent)
         self.title("Settings")
@@ -43,35 +47,42 @@ class SettingsDialog(tk.Toplevel):
         self.settings = dict(settings)
         self.result = None
 
-        frame = ttk.Frame(self, padding=12)
-        frame.pack(fill="both", expand=True)
+        frame = ctk.CTkFrame(self, fg_color=theme.PANEL, corner_radius=12)
+        frame.pack(fill="both", expand=True, padx=16, pady=16)
 
-        ttk.Label(frame, text="Download folder:").grid(row=0, column=0, sticky="w", pady=4)
-        self.dir_var = tk.StringVar(value=self.settings["download_dir"])
-        entry = ttk.Entry(frame, textvariable=self.dir_var, width=45)
-        entry.grid(row=0, column=1, sticky="ew", padx=4)
-        ttk.Button(frame, text="Browse...", command=self._browse).grid(row=0, column=2)
+        ctk.CTkLabel(frame, text="Settings", font=theme.font(16, "bold")).pack(anchor="w", pady=(0, 10))
 
-        ttk.Label(frame, text="Download limit (KB/s, 0 = unlimited):").grid(
-            row=1, column=0, sticky="w", pady=4
-        )
-        self.down_var = tk.StringVar(value=str(self.settings["download_rate"] // 1024))
-        ttk.Entry(frame, textvariable=self.down_var, width=15).grid(row=1, column=1, sticky="w", padx=4)
+        ctk.CTkLabel(frame, text="Download folder", font=theme.font(12)).pack(anchor="w")
+        folder_row = ctk.CTkFrame(frame, fg_color="transparent")
+        folder_row.pack(fill="x", pady=(4, 8))
+        self.dir_var = ctk.StringVar(value=self.settings["download_dir"])
+        ctk.CTkEntry(folder_row, textvariable=self.dir_var, fg_color=theme.BG, border_color=theme.BORDER).pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkButton(folder_row, text="Browse...", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=self._browse, width=90).pack(side="left")
 
-        ttk.Label(frame, text="Upload limit (KB/s, 0 = unlimited):").grid(
-            row=2, column=0, sticky="w", pady=4
-        )
-        self.up_var = tk.StringVar(value=str(self.settings["upload_rate"] // 1024))
-        ttk.Entry(frame, textvariable=self.up_var, width=15).grid(row=2, column=1, sticky="w", padx=4)
+        limits_row = ctk.CTkFrame(frame, fg_color="transparent")
+        limits_row.pack(fill="x", pady=(4, 4))
+        ctk.CTkLabel(limits_row, text="Download limit (KB/s)", font=theme.font(12)).pack(side="left")
+        self.down_var = ctk.StringVar(value=str(self.settings["download_rate"] // 1024))
+        ctk.CTkEntry(limits_row, textvariable=self.down_var, width=90, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
+        ctk.CTkLabel(limits_row, text="0 = unlimited").pack(side="right", padx=(0, 10))
 
-        ttk.Label(frame, text="Listen port:").grid(row=3, column=0, sticky="w", pady=4)
-        self.port_var = tk.StringVar(value=str(self.settings["port"]))
-        ttk.Entry(frame, textvariable=self.port_var, width=15).grid(row=3, column=1, sticky="w", padx=4)
+        limits_row2 = ctk.CTkFrame(frame, fg_color="transparent")
+        limits_row2.pack(fill="x", pady=(4, 4))
+        ctk.CTkLabel(limits_row2, text="Upload limit (KB/s)", font=theme.font(12)).pack(side="left")
+        self.up_var = ctk.StringVar(value=str(self.settings["upload_rate"] // 1024))
+        ctk.CTkEntry(limits_row2, textvariable=self.up_var, width=90, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
+        ctk.CTkLabel(limits_row2, text="0 = unlimited").pack(side="right", padx=(0, 10))
 
-        btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=4, column=0, columnspan=3, sticky="e", pady=(12, 0))
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=4)
-        ttk.Button(btn_frame, text="Save", command=self._save).pack(side="left")
+        port_row = ctk.CTkFrame(frame, fg_color="transparent")
+        port_row.pack(fill="x", pady=(8, 4))
+        ctk.CTkLabel(port_row, text="Listen port", font=theme.font(12)).pack(side="left")
+        self.port_var = ctk.StringVar(value=str(self.settings["port"]))
+        ctk.CTkEntry(port_row, textvariable=self.port_var, width=120, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(anchor="e", pady=(14, 0))
+        ctk.CTkButton(btn_frame, text="Cancel", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=self.destroy, width=90).pack(side="left", padx=6)
+        ctk.CTkButton(btn_frame, text="Save", fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, command=self._save, width=90).pack(side="left")
 
     def _browse(self):
         path = filedialog.askdirectory(parent=self, title="Choose download folder")
@@ -85,7 +96,26 @@ class SettingsDialog(tk.Toplevel):
             self.settings["upload_rate"] = int(self.up_var.get()) * 1024
             self.settings["port"] = int(self.port_var.get())
         except ValueError:
+            import tkinter as tk
             tk.messagebox.showerror("Invalid input", "Limits and port must be numbers.", parent=self)
             return
         self.result = self.settings
         self.destroy()
+
+
+class AboutDialog(ctk.CTkToplevel):
+    def __init__(self, parent, version):
+        super().__init__(parent)
+        self.title("About Vortex Torrent")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        frame = ctk.CTkFrame(self, fg_color=theme.PANEL, corner_radius=12)
+        frame.pack(fill="both", expand=True, padx=16, pady=16)
+
+        ctk.CTkLabel(frame, text="Vortex Torrent", font=theme.font(20, "bold"), text_color=theme.CYAN).pack(pady=(6, 0))
+        ctk.CTkLabel(frame, text="Version %s" % version, font=theme.font(13), text_color=theme.TEXT_DIM).pack()
+        ctk.CTkLabel(frame, text="Fast, free desktop BitTorrent downloader.\nBuilt with libtorrent + customtkinter.", font=theme.font(12), text_color=theme.TEXT).pack(pady=(10, 4))
+        ctk.CTkLabel(frame, text="github.com/chamarawickramarathne-spec/VortexTorrent", font=theme.font(11), text_color=theme.ACCENT).pack(pady=(4, 10))
+        ctk.CTkButton(frame, text="Close", fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER, command=self.destroy, width=120).pack(pady=(6, 4))
