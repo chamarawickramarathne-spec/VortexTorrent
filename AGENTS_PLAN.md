@@ -22,9 +22,11 @@ Full-featured Windows desktop BitTorrent downloader, v1.0.0.
 - [x] updater.py written.
 - [x] media logo.png (512x512) + icon.ico (256x256) generated.
 - [x] medial_support.txt, AGENTS.md, AGENTS_PLAN.md written.
-- [ ] Build exe + installer (build.bat + installer.iss).
-- [ ] Git init + GitHub repo + v1.0.0 release.
-- [ ] Final verification: launch app, add legal magnet, watch download.
+- [x] Build exe + installer (build.bat + installer.iss).
+- [x] Git init + GitHub repo + v1.0.0 release.
+- [x] Final verification: launch app, add legal magnet, watch download.
+- [x] Packaged exe verified: launches and stays running.
+- [x] Updater verified against GitHub release (v1.0.0 found, installer asset resolved).
 
 ## Decisions locked
 - Stack: Python 3.13.9 + libtorrent 2.1.1 + tkinter.
