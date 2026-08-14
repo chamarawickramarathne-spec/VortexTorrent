@@ -63,6 +63,7 @@ class TorrentEngine:
                 if entry:
                     entry.name = alert.handle.name()
                     self._files_ready.append(entry.id)
+            alert.handle.pause()
         elif isinstance(alert, lt.torrent_error_alert):
             with self.lock:
                 entry = self.torrents.get(str(alert.handle.info_hash()))
@@ -233,6 +234,8 @@ class TorrentEngine:
             total = st.total_wanted or st.total
             done = st.total_wanted_done
             progress = st.progress
+            if total and done >= total:
+                state = "Completed"
             if st.total_wanted:
                 eta_secs = self._eta(st)
             else:

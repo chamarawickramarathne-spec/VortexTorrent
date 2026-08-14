@@ -28,6 +28,8 @@ def state_color(state):
         return CYAN
     if state == "Paused":
         return TEXT_DIM
+    if state == "Completed":
+        return SUCCESS
     if state == "Error":
         return DANGER
     if state == "Finished":

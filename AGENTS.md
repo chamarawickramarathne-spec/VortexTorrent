@@ -4,7 +4,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.3.0 (mod 4)
+- **Version**: 1.4.0 (mod 5)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
 - **Python**: 3.13.9 64-bit (venv `.venv`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
@@ -23,16 +23,15 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - `media/` - logo.png, icon.ico, generate_media.py
 - `requirements.txt` - libtorrent==2.1.1, customtkinter==6.0.0, Pillow>=10.0
 
-## Download-Only Mode (mod 3)
-- App NEVER uploads: session settings force `unchoke_slots_limit=0`, `num_optimistic_unchoke_slots=0`, `active_seeds=0`. Do NOT raise these.
+## Download-Only Mode (mod 3)- App NEVER uploads: session settings force `unchoke_slots_limit=0`, `num_optimistic_unchoke_slots=0`, `active_seeds=0`. Do NOT raise these.
 - Torrents are added with `auto_managed` cleared (default flags include `paused`, so `paused` must be cleared too for non-paused adds — otherwise torrent never starts).
 - On `torrent_finished_alert` the torrent is paused (no seeding).
 - `snapshot()` reports `upload_rate` from `st.upload_payload_rate` (plain `st.upload_rate` reports spurious non-payload bytes in 2.1.1).
 - Settings dialog has NO upload limit; `apply_speed_limits(download_rate)` only.
 
-## File Selection (mod 4)
-- `.torrent` add: file list read via `engine.file_list_from_file(path)` BEFORE adding; FileSelectDialog shown (skipped for single-file); priorities applied at add time via `params.file_priorities` so skipped files never download. Cancel = do not add.
-- Magnet add: torrent added immediately (must stay unpaused or metadata is never fetched); on `metadata_received_alert` the engine appends the id to a thread-safe `_files_ready` queue. UI drains it in `_refresh` (main thread) and opens FileSelectDialog. Priorities applied via `handle.prioritize_files()` (async, verify after ~1s). Cancel = keep all files.
+## File Selection (mod 5)
+- `.torrent` add: file list read via `engine.file_list_from_file(path)` BEFORE adding; FileSelectDialog shown (skipped for single-file); priorities applied at add time via `params.file_priorities` so skipped files never download. Cancel = do not add. Priorities ALSO resynced after add via `set_file_priorities` (idempotent safety net).
+- Magnet add: torrent added immediately (must stay unpaused or metadata is never fetched). On `metadata_received_alert` the engine appends the id to a thread-safe `_files_ready` queue AND calls `alert.handle.pause()` immediately, so NOTHING downloads until the user confirms selection. UI drains the queue in `_refresh` (main thread), opens FileSelectDialog, then applies priorities via `handle.prioritize_files()` and resumes the torrent. Cancel = keep all files (still resumes). Single-file magnet = skip dialog but resume.
 - `engine.file_list(torrent_id)` returns `None` until metadata arrives; uses `handle.torrent_file().files()`.
 - `params.file_priorities` and `handle.prioritize_files` both verified working in libtorrent 2.1.1. `handle.file_priorities()`/`prioritize_files` are deprecated warnings but functional.
 - Do NOT touch Tk from the engine alert thread; UI polls `take_files_ready()` instead of a callback.
@@ -57,6 +56,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - **mod 2 (1.1.0)**: Fixed pause/resume/remove/delete bug (`_selected_ids`), new modern dark customtkinter UI, torrent rows w/ progress bars, context menu, keyboard shortcuts, visible update feature (Help menu + About), resume-data bencode fix, `save_path` in snapshot.
 - **mod 3 (1.2.0)**: Removed menu bar; header now shows version next to title (clickable -> About) + Update button; forced download-only mode (no upload/seeding: unchoke_slots_limit=0, num_optimistic_unchoke_slots=0, active_seeds=0, pause on finish); removed Up column + status bar upload; removed upload limit from Settings; snapshot upload_rate uses upload_payload_rate.
 - **mod 4 (1.3.0)**: MagnetDialog auto-pastes a `magnet:` link from clipboard on open; added file selection - `.torrent` shows FileSelectDialog before add (priorities via `params.file_priorities`), magnet shows FileSelectDialog automatically when metadata arrives (priorities via `handle.prioritize_files`); single-file torrents skip the dialog; engine gains `file_list_from_file`, `file_list`, `set_file_priorities`, `take_files_ready`.
+- **mod 5 (1.4.0)**: Guarantee only selected files download - engine pauses the handle on `metadata_received_alert` so NOTHING downloads until the user confirms; UI resumes the magnet after applying priorities (and on Cancel/single-file magnet); `.torrent` add resyncs priorities after add as a safety net. New "Completed" status: snapshot shows "Completed" (green) instead of "Paused" when selected bytes finish; Space-toggle ignores Completed torrents.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`

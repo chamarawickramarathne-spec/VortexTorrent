@@ -14,7 +14,7 @@ from ui import theme
 from ui.dialogs import AboutDialog, FileSelectDialog, MagnetDialog, SettingsDialog
 from updater import UpdateChecker
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 GITHUB_URL = "https://github.com/chamarawickramarathne-spec/VortexTorrent"
 
 
@@ -202,6 +202,11 @@ class MainWindow(ctk.CTk):
         except Exception as exc:
             messagebox.showerror("Add failed", str(exc), parent=self)
             return
+        if priorities is not None:
+            try:
+                self.engine.set_file_priorities(entry.id, priorities)
+            except Exception:
+                pass
         self._create_row(entry.id)
 
     def _add_magnet(self):
@@ -225,6 +230,7 @@ class MainWindow(ctk.CTk):
             return
         self._file_dialog_shown.add(torrent_id)
         if len(files) <= 1:
+            self.engine.resume(torrent_id)
             return
         snap = self._last_snapshot.get(torrent_id)
         title = (snap or {}).get("name") or "Select files"
@@ -235,6 +241,7 @@ class MainWindow(ctk.CTk):
                 self.engine.set_file_priorities(torrent_id, dialog.result)
             except Exception as exc:
                 messagebox.showerror("Selection failed", str(exc), parent=self)
+        self.engine.resume(torrent_id)
 
     def _create_row(self, torrent_id):
         if torrent_id in self._row_widgets:
@@ -373,6 +380,8 @@ class MainWindow(ctk.CTk):
         snap = self._last_snapshot.get(self._selected_id)
         if snap and snap["state"] == "Paused":
             self.engine.resume(self._selected_id)
+        elif snap and snap["state"] == "Completed":
+            return
         else:
             self.engine.pause(self._selected_id)
 

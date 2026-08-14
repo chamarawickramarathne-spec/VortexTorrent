@@ -1,5 +1,5 @@
 #define MyAppName "Vortex Torrent"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "Vortex"
 #define MyAppExeName "VortexTorrent.exe"
 
@@ -12,7 +12,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=installer
-OutputBaseFilename=VortexTorrent-Setup-{#MyAppVersion}
+OutputBaseFilename=VortexTorrent-Setup
 SetupIconFile=media\icon.ico
 Compression=lzma2
 SolidCompression=yes
