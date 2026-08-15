@@ -14,7 +14,7 @@ from ui import theme
 from ui.dialogs import AboutDialog, FileSelectDialog, MagnetDialog, SettingsDialog
 from updater import UpdateChecker
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 GITHUB_URL = "https://github.com/chamarawickramarathne-spec/VortexTorrent"
 
 

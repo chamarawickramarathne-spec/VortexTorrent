@@ -7,3 +7,4 @@ installer/
 *.spec
 settings.json
 *.log
+media/*.jpeg

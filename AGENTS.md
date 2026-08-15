@@ -4,7 +4,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.4.0 (mod 5)
+- **Version**: 1.5.0 (mod 6)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
 - **Python**: 3.13.9 64-bit (venv `.venv`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
@@ -57,6 +57,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - **mod 3 (1.2.0)**: Removed menu bar; header now shows version next to title (clickable -> About) + Update button; forced download-only mode (no upload/seeding: unchoke_slots_limit=0, num_optimistic_unchoke_slots=0, active_seeds=0, pause on finish); removed Up column + status bar upload; removed upload limit from Settings; snapshot upload_rate uses upload_payload_rate.
 - **mod 4 (1.3.0)**: MagnetDialog auto-pastes a `magnet:` link from clipboard on open; added file selection - `.torrent` shows FileSelectDialog before add (priorities via `params.file_priorities`), magnet shows FileSelectDialog automatically when metadata arrives (priorities via `handle.prioritize_files`); single-file torrents skip the dialog; engine gains `file_list_from_file`, `file_list`, `set_file_priorities`, `take_files_ready`.
 - **mod 5 (1.4.0)**: Guarantee only selected files download - engine pauses the handle on `metadata_received_alert` so NOTHING downloads until the user confirms; UI resumes the magnet after applying priorities (and on Cancel/single-file magnet); `.torrent` add resyncs priorities after add as a safety net. New "Completed" status: snapshot shows "Completed" (green) instead of "Paused" when selected bytes finish; Space-toggle ignores Completed torrents.
+- **mod 6 (1.5.0)**: New logo - `media/generate_media.py` rewritten to render a clean anti-aliased vortex (4x supersample, log-spiral arm, tapered stroke, gaussian glow, cyan->blue->purple->magenta gradient matching logo.jpeg, bright white-cyan core, transparent bg). Regenerated `media/logo.png` (512px) + `media/icon.ico` (multi-size). Header/bump: APP_VERSION and installer version -> 1.5.0.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`
