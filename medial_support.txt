@@ -5,10 +5,10 @@ MEDIA SUPPORT - VORTEX TORRENT
 Vortex Torrent
 
 2. SHORT DESCRIPTION
-A fast, free desktop BitTorrent downloader for Windows with a modern dark interface and a brand-new vortex logo. Add .torrent files or magnet links, pick exactly which files to download, track live progress, and control your bandwidth - all in one clean app.
+A fast, free desktop BitTorrent downloader for Windows with a modern dark interface and a new 3D vortex galaxy logo. Add .torrent files or magnet links, pick exactly which files to download, track live progress, and control your bandwidth - all in one clean app.
 
 3. LONG DESCRIPTION
-Vortex Torrent is a full-featured BitTorrent client for Windows built on the battle-tested libtorrent engine, wrapped in a sleek modern dark interface with a freshly redesigned vortex logo. It makes downloading legal, open content simple and fast. Add .torrent files or paste magnet links and Vortex handles the rest - discovering peers through DHT, peer exchange, and trackers so you get the fastest available speeds.
+Vortex Torrent is a full-featured BitTorrent client for Windows built on the battle-tested libtorrent engine, wrapped in a sleek modern dark interface with a brand-new 3D vortex logo - a glowing spiral galaxy disk with depth, specular light and a bright core. It makes downloading legal, open content simple and fast. Add .torrent files or paste magnet links and Vortex handles the rest - discovering peers through DHT, peer exchange, and trackers so you get the fastest available speeds.
 
 Smart file selection lets you choose exactly what you want before anything downloads. Add a .torrent and a checkbox dialog appears listing every file with its size - tick what you need, skip the rest. Add a magnet link and the same picker opens automatically the moment the torrent metadata arrives, pausing the download until you confirm your choice - Vortex downloads ONLY the files you select, nothing else. Your clipboard even does the work for you: open the Add Magnet dialog and any magnet link you copied is pasted in automatically.
 
@@ -17,16 +17,16 @@ A beautiful, dark-themed interface shows every download as a live card with a pr
 Built for download-only use, Vortex Torrent never uploads or seeds - it simply fetches what you ask for and then stops. Your privacy is respected: all configuration is stored locally and the app includes a built-in updater with a header button that checks GitHub for new releases, so you always run the latest version. Everything is open source and free.
 
 4. FACEBOOK POST TEXT
-Meet Vortex Torrent 1.5 - a beautiful dark-themed BitTorrent downloader for Windows, now with a brand-new vortex logo! Choose exactly which files to download and Vortex downloads ONLY what you pick - nothing else touches your disk. Add a magnet and the picker opens the instant metadata arrives, while the download waits for your approval. Auto-pastes the magnet link you copied. Fast downloads with DHT and peer exchange, live progress cards with a green "Completed" status when you're done, one-click pause/resume/remove, right-click menus, and keyboard shortcuts. Download-only mode - no uploads, no seeding, just downloads. One-click update button right in the app. Clean, modern, and 100% open source. Try it today!
+Meet Vortex Torrent 1.6 - a beautiful dark-themed BitTorrent downloader for Windows, now with a stunning new 3D vortex logo! Choose exactly which files to download and Vortex downloads ONLY what you pick - nothing else touches your disk. Add a magnet and the picker opens the instant metadata arrives, while the download waits for your approval. Auto-pastes the magnet link you copied. Fast downloads with DHT and peer exchange, live progress cards with a green "Completed" status when you're done, one-click pause/resume/remove, right-click menus, and keyboard shortcuts. Download-only mode - no uploads, no seeding, just downloads. One-click update button right in the app. Clean, modern, and 100% open source. Try it today!
 
 5. TAGS (10)
 #VortexTorrent #BitTorrent #TorrentClient #OpenSource #WindowsApp #DownloadManager #P2P #FreeSoftware #libtorrent #DarkMode
 
 6. AI IMAGE PROMPTS (5)
-a) A glowing vortex spiral of cyan and magenta light streaming on a deep black background, bright white core at the center, sweeping tapered spiral arm with a soft gaussian glow, clean minimal tech style, high contrast, 4k.
+a) A 3D spiral galaxy disk logo made of glowing cyan and magenta light tubes, tilted perspective with depth of field, near side bright and large, far side fading with atmospheric fog, specular highlights along the arms, bright white core, on a deep black background, clean minimal tech style, 4k render.
 b) A modern desktop app window with a dark navy theme showing a file-selection checklist of torrent files with glowing violet checkboxes, floating on a dark gradient background with soft purple nebula lighting, product-shot style.
 c) A swirling tornado funnel made of glowing cyan and purple circuit lines and binary code, bright energy core, centered on a deep black background, futuristic digital art, symmetrical composition.
 d) A user's hand tapping a magnet symbol on a dark screen while a clipboard link glows and flies into a dialog box, holographic UI elements, soft glow, cinematic lighting, tech aesthetic.
-e) Minimal app icon design, a neon cyan-to-magenta vortex swirl centered on a dark navy rounded square with a bright glowing core, subtle gradient shine, app store icon style, clean vector look.
+e) Minimal app icon design, a 3D vortex galaxy swirl with cyan-to-magenta neon tubes and a glowing core centered on a dark navy rounded square, subtle gradient shine, app store icon style, clean vector look.
 
-REGENERATED 2026-08-15 for v1.5.0 (mod 6)
+REGENERATED 2026-08-15 for v1.6.0 (mod 7)
