@@ -4,7 +4,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.6.0 (mod 7)
+- **Version**: 1.7.0 (mod 8)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
 - **Python**: 3.13.9 64-bit (venv `.venv`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
@@ -59,6 +59,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - **mod 5 (1.4.0)**: Guarantee only selected files download - engine pauses the handle on `metadata_received_alert` so NOTHING downloads until the user confirms; UI resumes the magnet after applying priorities (and on Cancel/single-file magnet); `.torrent` add resyncs priorities after add as a safety net. New "Completed" status: snapshot shows "Completed" (green) instead of "Paused" when selected bytes finish; Space-toggle ignores Completed torrents.
 - **mod 6 (1.5.0)**: New logo - `media/generate_media.py` rewritten to render a clean anti-aliased vortex (4x supersample, log-spiral arm, tapered stroke, gaussian glow, cyan->blue->purple->magenta gradient matching logo.jpeg, bright white-cyan core, transparent bg). Regenerated `media/logo.png` (512px) + `media/icon.ico` (multi-size). Header/bump: APP_VERSION and installer version -> 1.5.0.
 - **mod 7 (1.6.0)**: 3D logo - renderer now models the spiral arm in 3D as a tilted galaxy disk: 16-deg pitch rotation, perspective projection (0.85-1.21x), depth-sorted occlusion, depth fog (near 1.0 -> far 0.45), near-side brightening, specular highlight stripe (up-left light), drop shadow, glowing core. Regenerated `media/logo.png` + `media/icon.ico`. APP_VERSION and installer version -> 1.6.0.
+- **mod 8 (1.7.0)**: Custom logo - `media/generate_media.py` repurposed: the procedural 3D renderer is removed; it now only builds multi-size `media/icon.ico` (16-256px, LANCZOS) from the user-supplied `media/logo.png` (2048px RGBA vortex, added as the header logo + window/app icon) and NEVER overwrites logo.png. APP_VERSION and installer version -> 1.7.0.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`
