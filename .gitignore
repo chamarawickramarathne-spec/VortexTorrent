@@ -1,8 +1,11 @@
 .venv/
+.venv32/
 __pycache__/
 *.pyc
 build/
+build32/
 dist/
+dist32/
 installer/
 *.spec
 settings.json

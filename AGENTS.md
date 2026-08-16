@@ -1,12 +1,12 @@
 # Vortex Torrent - App Memory
 
-Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.1 + customtkinter 6.0.0.
+Windows desktop BitTorrent downloader built with Python 3.13.9 (64-bit) / 3.12 (32-bit) + libtorrent 2.1.1 + customtkinter 6.0.0.
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.7.0 (mod 8)
+- **Version**: 1.8.0 (mod 9)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
-- **Python**: 3.13.9 64-bit (venv `.venv`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
+- **Python**: 64-bit build uses 3.13.9 (venv `.venv`); 32-bit build uses 3.12 (venv `.venv32`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
 - **Engine**: libtorrent 2.1.1 via `core/engine.py`
 - **Update source**: GitHub releases (owner `chamarawickramarathne-spec`, repo `VortexTorrent`)
@@ -41,7 +41,9 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - Resume data: `save_resume_data_alert.resume_data` is a **dict** in 2.1.1 -> serialize with `lt.bencode()`. Loading uses `lt.read_resume_data(bytes)` which returns an `add_torrent_params` (do NOT assign bytes to `params.resume_data`).
 - No database needed; config is JSON. No `sql/` folder.
 - Resume data saved to `%APPDATA%\VortexTorrent\resume\*.fastresume` on pause/remove/exit.
-- Build outputs go to `build/`, `dist/`, `installer/` (gitignored).
+- Build outputs: x64 goes to `build/`/`dist/`, x86 goes to `build32/`/`dist32/`, installer to `installer/` (all gitignored).
+- Combined installer (mod 9): `installer.iss` uses `ArchitecturesAllowed=x86compatible x64compatible` + `ArchitecturesInstallIn64BitMode=x64compatible`; `[Files]` installs `dist\VortexTorrent\*` when `Is64BitInstallMode` and `dist32\VortexTorrent\*` otherwise. Single `VortexTorrent-Setup.exe` asset, so updater logic is unchanged.
+- x64 and x86 builds share the same `%APPDATA%\VortexTorrent` config/resume data.
 
 ## UI/UX Notes
 - Dark theme colors in `ui/theme.py` (BG #12141c, PANEL #1c2030, ACCENT #7c5cff, CYAN #22d3ee).
@@ -60,13 +62,14 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 + libtorrent 2.1.
 - **mod 6 (1.5.0)**: New logo - `media/generate_media.py` rewritten to render a clean anti-aliased vortex (4x supersample, log-spiral arm, tapered stroke, gaussian glow, cyan->blue->purple->magenta gradient matching logo.jpeg, bright white-cyan core, transparent bg). Regenerated `media/logo.png` (512px) + `media/icon.ico` (multi-size). Header/bump: APP_VERSION and installer version -> 1.5.0.
 - **mod 7 (1.6.0)**: 3D logo - renderer now models the spiral arm in 3D as a tilted galaxy disk: 16-deg pitch rotation, perspective projection (0.85-1.21x), depth-sorted occlusion, depth fog (near 1.0 -> far 0.45), near-side brightening, specular highlight stripe (up-left light), drop shadow, glowing core. Regenerated `media/logo.png` + `media/icon.ico`. APP_VERSION and installer version -> 1.6.0.
 - **mod 8 (1.7.0)**: Custom logo - `media/generate_media.py` repurposed: the procedural 3D renderer is removed; it now only builds multi-size `media/icon.ico` (16-256px, LANCZOS) from the user-supplied `media/logo.png` (2048px RGBA vortex, added as the header logo + window/app icon) and NEVER overwrites logo.png. APP_VERSION and installer version -> 1.7.0.
+- **mod 9 (1.8.0)**: 32-bit Windows support - new `.venv32` (Python 3.12-32, same `requirements.txt`; libtorrent 2.1.1 has cp312 `win32` wheels). `build.bat` now builds BOTH: x64 PyInstaller -> `dist\VortexTorrent`, x86 PyInstaller -> `dist32\VortexTorrent`. `installer.iss` is a combined dual-arch installer (`ArchitecturesAllowed=x86compatible x64compatible`, `ArchitecturesInstallIn64BitMode=x64compatible`) that installs `dist\*` when `Is64BitInstallMode` else `dist32\*`, still outputting a single `VortexTorrent-Setup.exe` so the Update feature is unchanged. APP_VERSION and installer version -> 1.8.0.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`
-- Build: `build.bat` (venv check -> deps -> PyInstaller -> ISCC installer)
+- Build: `build.bat` (both venvs check -> deps -> media -> x64 PyInstaller -> x86 PyInstaller -> ISCC combined installer)
 
 ## Rules to Remember
 - Windows app -> always produce exe + installer (Inno Setup via ISCC.exe).
 - Create/regenerate `medial_support.txt` after every modification.
 - Update version + mod number here after every change.
-- GitHub repo must contain only app files (build/, dist/, installer/, .venv/ gitignored).
+- GitHub repo must contain only app files (build/, build32/, dist/, dist32/, installer/, .venv/, .venv32/ gitignored).

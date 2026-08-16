@@ -1,5 +1,5 @@
 #define MyAppName "Vortex Torrent"
-#define MyAppVersion "1.7.0"
+#define MyAppVersion "1.8.0"
 #define MyAppPublisher "Vortex"
 #define MyAppExeName "VortexTorrent.exe"
 
@@ -18,7 +18,7 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
-ArchitecturesAllowed=x64compatible
+ArchitecturesAllowed=x86compatible x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
@@ -28,7 +28,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\VortexTorrent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\VortexTorrent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: Is64BitInstallMode
+Source: "dist32\VortexTorrent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not Is64BitInstallMode
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
