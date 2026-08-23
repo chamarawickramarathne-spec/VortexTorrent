@@ -4,7 +4,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 (64-bit) / 3.12 (
 
 ## App Details
 - **Name**: Vortex Torrent
-- **Version**: 1.8.0 (mod 9)
+- **Version**: 1.9.0 (mod 10)
 - **Entry point**: `main.py` (runs `ui.main_window.main`)
 - **Python**: 64-bit build uses 3.13.9 (venv `.venv`); 32-bit build uses 3.12 (venv `.venv32`) - libtorrent has no cp314 wheels, do NOT move to Python 3.14
 - **GUI**: customtkinter 6.0.0 (dark theme) over tkinter
@@ -15,6 +15,8 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 (64-bit) / 3.12 (
 - `main.py` - entry point
 - `core/engine.py` - libtorrent session wrapper (threaded alert loop, DHT, PEX, trackers, speed limits, resume data)
 - `core/models.py` - TorrentEntry model
+- `core/partfile.py` - `.parts` part-file cleanup helpers (hash hexes, readiness checks, retry queue)
+- `core/filemap.py` - pad-file-aware file listing + priority expansion (BEP 52 hybrids)
 - `core/config.py` - settings load/save (JSON in `%APPDATA%\VortexTorrent\settings.json`), default download dir
 - `ui/main_window.py` - main window (CTk): header (title + version + Update button), toolbar, torrent rows w/ progress bars, context menu, keyboard shortcuts, update prompts
 - `ui/dialogs.py` - CTk magnet/settings/about dialogs + FileSelectDialog (checkbox list, Select All/None, returns 1/0 priorities). MagnetDialog auto-pastes a `magnet:` link from the clipboard on open.
@@ -63,6 +65,7 @@ Windows desktop BitTorrent downloader built with Python 3.13.9 (64-bit) / 3.12 (
 - **mod 7 (1.6.0)**: 3D logo - renderer now models the spiral arm in 3D as a tilted galaxy disk: 16-deg pitch rotation, perspective projection (0.85-1.21x), depth-sorted occlusion, depth fog (near 1.0 -> far 0.45), near-side brightening, specular highlight stripe (up-left light), drop shadow, glowing core. Regenerated `media/logo.png` + `media/icon.ico`. APP_VERSION and installer version -> 1.6.0.
 - **mod 8 (1.7.0)**: Custom logo - `media/generate_media.py` repurposed: the procedural 3D renderer is removed; it now only builds multi-size `media/icon.ico` (16-256px, LANCZOS) from the user-supplied `media/logo.png` (2048px RGBA vortex, added as the header logo + window/app icon) and NEVER overwrites logo.png. APP_VERSION and installer version -> 1.7.0.
 - **mod 9 (1.8.0)**: 32-bit Windows support - new `.venv32` (Python 3.12-32, same `requirements.txt`; libtorrent 2.1.1 has cp312 `win32` wheels). `build.bat` now builds BOTH: x64 PyInstaller -> `dist\VortexTorrent`, x86 PyInstaller -> `dist32\VortexTorrent`. `installer.iss` is a combined dual-arch installer (`ArchitecturesAllowed=x86compatible x64compatible`, `ArchitecturesInstallIn64BitMode=x64compatible`) that installs `dist\*` when `Is64BitInstallMode` else `dist32\*`, still outputting a single `VortexTorrent-Setup.exe` so the Update feature is unchanged. APP_VERSION and installer version -> 1.8.0.
+- **mod 10 (1.9.0)**: `.parts` leftover cleanup - libtorrent stores skipped-file portions of shared pieces in `<save_path>\.<info-hash-hex>.parts` and NEVER deletes them. New `core/partfile.py` (hash hexes via `info_hashes().v1/.v2/.get_best()`, completeness/settled checks) + `core/filemap.py`. CRITICAL lesson verified by instrumentation: the partfile is written LAZILY and libtorrent RECREATES it from its write-back cache after external deletion (post-pause flush lands ~0.4s later), so ONE-SHOT deletion always fails; cleanup is therefore RETRY-BASED - engine queues candidate paths on save_resume_data/cache_flushed alerts and on remove(keep data), and `_alert_loop` drains the queue every tick (`MAX_ORPHAN_TRIES=200` x 50ms); `stop()` drains synchronously up to 5s. Cleanup only fires when complete AND paused/finished/seeding - partial downloads keep their .parts (needed for resume); Vortex never lets users re-select files on completed torrents so deletion cannot corrupt anything. Fixed pre-existing pad-file bug: BEP 52 hybrids insert pad files into file_storage shifting user priorities onto wrong files; `filemap.visible_files` filters pads (`file_flags(i) & flag_pad_file`) for display and `expand_priorities` inserts priority 0 for pads before `file_priorities`/`prioritize_files`. New e2e test `tests/test_partfile_cleanup.py` (3 torrents vs localhost seeder: v1 selective/full + hybrid selective; 16 checks, all pass). APP_VERSION and installer version -> 1.9.0.
 
 ## Build Commands
 - Dev run: `.venv\Scripts\python.exe main.py`

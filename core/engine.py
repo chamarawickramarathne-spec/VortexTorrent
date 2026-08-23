@@ -4,6 +4,8 @@ import time
 
 import libtorrent as lt
 
+from core import filemap
+from core import partfile
 from core.models import TorrentEntry
 
 STATE_NAMES = {
@@ -29,6 +31,7 @@ class TorrentEngine:
         self.running = False
         self.on_alert = on_alert
         self._files_ready = []
+        self._orphan_parts = []
 
     def start(self, port=6881, download_rate=0, upload_rate=0):
         settings = {
@@ -54,6 +57,8 @@ class TorrentEngine:
         while self.running:
             for alert in self.session.pop_alerts():
                 self._handle_alert(alert)
+            with self.lock:
+                partfile.drain_orphans(self._orphan_parts)
             time.sleep(0.05)
 
     def _handle_alert(self, alert):
@@ -71,14 +76,24 @@ class TorrentEngine:
                     entry.error = alert.message()
         elif isinstance(alert, lt.save_resume_data_alert):
             self._persist_resume(alert)
+        elif isinstance(alert, lt.cache_flushed_alert):
+            with self.lock:
+                entry = self.torrents.get(str(alert.handle.info_hash()))
+            if entry:
+                with self.lock:
+                    partfile.queue_cleanup(
+                        self._orphan_parts, entry.handle, entry.save_path
+                    )
         elif isinstance(alert, lt.torrent_finished_alert):
             alert.handle.pause()
+            alert.handle.save_resume_data(lt.torrent_handle.flush_disk_cache)
         if self.on_alert:
             self.on_alert(alert)
 
     def add_torrent_file(self, path, save_path, priorities=None, paused=False):
         info = lt.torrent_info(path)
         params = self._resume_params(info.info_hash())
+        resumed = params is not None
         if params is None:
             params = lt.add_torrent_params()
             params.ti = info
@@ -86,18 +101,19 @@ class TorrentEngine:
             params.ti = info
         params.save_path = save_path
         if priorities is not None:
-            params.file_priorities = list(priorities)
+            params.file_priorities = filemap.expand_priorities(info.files(), priorities)
         params.flags &= ~lt.torrent_flags.auto_managed
         if not paused:
             params.flags &= ~lt.torrent_flags.paused
         else:
             params.flags |= lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
-        return self._register(handle, save_path, "file")
+        return self._register(handle, save_path, "file", resumed=resumed)
 
     def add_magnet(self, uri, save_path, paused=False):
         parsed = lt.parse_magnet_uri(uri)
         params = self._resume_params(parsed.info_hash)
+        resumed = params is not None
         if params is None:
             params = parsed
         params.save_path = save_path
@@ -107,11 +123,11 @@ class TorrentEngine:
         else:
             params.flags |= lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
-        return self._register(handle, save_path, "magnet")
+        return self._register(handle, save_path, "magnet", resumed=resumed)
 
     def file_list_from_file(self, path):
         info = lt.torrent_info(path)
-        return [(info.files().file_path(i), info.files().file_size(i)) for i in range(info.num_files())]
+        return filemap.visible_files(info.files())
 
     def file_list(self, torrent_id):
         with self.lock:
@@ -124,14 +140,21 @@ class TorrentEngine:
             return None
         if tf is None:
             return None
-        files = tf.files()
-        return [(files.file_path(i), files.file_size(i)) for i in range(files.num_files())]
+        return filemap.visible_files(tf.files())
 
     def set_file_priorities(self, torrent_id, priorities):
         with self.lock:
             entry = self.torrents.get(torrent_id)
-        if entry:
-            entry.handle.prioritize_files([int(p) for p in priorities])
+        if not entry:
+            return
+        try:
+            tf = entry.handle.torrent_file()
+        except RuntimeError:
+            return
+        if tf is None:
+            return
+        expanded = filemap.expand_priorities(tf.files(), priorities)
+        entry.handle.prioritize_files(expanded)
 
     def take_files_ready(self):
         with self.lock:
@@ -146,7 +169,7 @@ class TorrentEngine:
         with open(resume_file, "rb") as f:
             return lt.read_resume_data(f.read())
 
-    def _register(self, handle, save_path, source):
+    def _register(self, handle, save_path, source, resumed=False):
         entry = TorrentEntry(
             handle,
             handle.name() or "Fetching metadata...",
@@ -156,6 +179,8 @@ class TorrentEngine:
         )
         with self.lock:
             self.torrents[entry.id] = entry
+        if resumed:
+            partfile.schedule_cleanup(handle)
         return entry
 
     def remove(self, torrent_id, delete_files=False):
@@ -167,6 +192,10 @@ class TorrentEngine:
         if delete_files:
             self.session.remove_torrent(entry.handle, lt.options_t.delete_files)
         else:
+            with self.lock:
+                partfile.queue_cleanup(
+                    self._orphan_parts, entry.handle, entry.save_path
+                )
             self.session.remove_torrent(entry.handle)
 
     def pause(self, torrent_id):
@@ -218,6 +247,13 @@ class TorrentEngine:
         data = lt.bencode(alert.resume_data)
         with open(target, "wb") as f:
             f.write(data)
+        with self.lock:
+            entry = self.torrents.get(ih)
+        if entry:
+            with self.lock:
+                partfile.queue_cleanup(
+                    self._orphan_parts, entry.handle, entry.save_path
+                )
 
     def snapshot(self):
         snap = []
@@ -277,3 +313,8 @@ class TorrentEngine:
                 self.session.remove_torrent(e.handle)
             except RuntimeError:
                 pass
+        deadline = time.time() + 5.0
+        while self._orphan_parts and time.time() < deadline:
+            with self.lock:
+                partfile.drain_orphans(self._orphan_parts)
+            time.sleep(0.1)
