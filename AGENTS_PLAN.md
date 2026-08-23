@@ -51,7 +51,7 @@ misalignment caused by BEP 52 pad files.
 - [x] AGENTS.md mod 10 entry.
 - [x] Regenerate medial_support.txt.
 - [x] build.bat (x64 + x86 exe + combined installer).
-- [ ] Git commit + tag release (pending user go-ahead).
+- [x] Git commit + tag v1.9.0 + GitHub release with VortexTorrent-Setup.exe.
 
 ## Status
 - COMPLETE - e2e test passes (2 consecutive runs); artifacts verified:
