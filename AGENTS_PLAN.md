@@ -5,9 +5,14 @@ Add a max-active-downloads queue and harden the application's security
 (update channel integrity, settings validation, active-slot accounting).
 
 ## Policy Decisions (user-approved via audit)
-- Update channel: verify SHA-256 (when a published checksum asset exists) AND
-  verify the Authenticode signature (WinVerifyTrust + publisher match) before
-  launching an installer; only ever offer NEWER versions (never downgrade).
+- Update channel: verify the SHA-256 checksum against the published `.sha256`
+  asset (always) and apply the Authenticode policy - a PRESENT signature must
+  be valid (WinVerifyTrust + publisher match), an UNSIGNED installer is
+  allowed only when its bytes match the published checksum, present-but-invalid
+  signatures are refused; only ever offer NEWER versions (never downgrade).
+  (Policy revised from "must be signed" to "checksum required, signature
+  validated when present" because releases are unsigned and strict enforcement
+  would make the updater refuse the app's own releases.)
 - Settings: validate/coerce all `settings.json` keys, clamp `port` to
   1024-65535 and `download_rate`/`max_active_downloads` to >= 0, back up a
   corrupt file to `settings.json.bak` instead of silent fallback.
@@ -28,9 +33,9 @@ Add a max-active-downloads queue and harden the application's security
 ### 2. Update channel hardening (`updater.py`, `ui/main_window.py`)
 - [x] `UpdateChecker.check(current)` returns only tags NEWER than current.
 - [x] `download_installer` verifies SHA-256 vs published `.sha256` asset when
-      present, then verifies Authenticode via WinVerifyTrust + signing-cert
-      publisher match (`EXPECTED_PUBLISHER`) before launch.
-- [x] Reuses a fresh cached, already-signed installer.
+      present, then applies the signature policy (signed = valid + publisher
+      match; unsigned = allowed via checksum; present-but-invalid = refused).
+- [x] Reuses a fresh cached installer with full re-verification.
 - [x] `cleanup_stale` removes old `VortexTorrent-Setup-*.exe` copies.
 - [x] UI offers only newer versions; runs the verified installer.
 

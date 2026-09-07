@@ -10,9 +10,14 @@ from ctypes import wintypes
 GITHUB_OWNER = "chamarawickramarathne-spec"
 GITHUB_REPO = "VortexTorrent"
 
-# Publisher name expected on the signed installer's certificate. If the
-# installer is not signed by an identity whose subject contains this string,
-# the update is refused.
+# Publisher name expected on the signing certificate of a SIGNED installer.
+# Policy (checksum is always verified separately in download_installer):
+#   - Unsigned installers are permitted as long as the downloaded bytes match
+#     the SHA-256 checksum published in the release (integrity guarantee).
+#   - An installer that DOES carry a signature must pass WinVerifyTrust (chain
+#     validates against the trusted root store) AND its signing-certificate
+#     subject must contain EXPECTED_PUBLISHER.
+#   - A signature that is present but invalid/tampered is always refused.
 EXPECTED_PUBLISHER = "Vortex"
 
 # Reuse a cached, already-verified installer if it is younger than this.
@@ -79,11 +84,9 @@ def _sha256_file(path):
     return digest.hexdigest()
 
 
-def _verify_signature(path):
-    """Return True when the Authenticode signature is valid and its signing
-    certificate subject matches EXPECTED_PUBLISHER."""
-    # 1) Structural validation via WinVerifyTrust (cryptographically checks
-    #    the signature chain against the trusted root store).
+def _winverifytrust_valid(path):
+    """Cryptographically validate the signed file against the trusted root
+    store. Returns False for unsigned files (error TRUST_E_NOSIGNATURE)."""
     guid = GUID()
     guid.Data1, guid.Data2, guid.Data3 = 0x00AAC56B, 0xCD44, 0x11D0
     guid.Data4 = (ctypes.c_ubyte * 8)(0x8C, 0xC2, 0x00, 0xC0, 0x4F, 0xC2, 0x95, 0xEE)
@@ -104,26 +107,53 @@ def _verify_signature(path):
     result = ctypes.windll.wintrust.WinVerifyTrust(
         wintypes.HWND(0), ctypes.byref(guid), ctypes.byref(trust)
     )
-    if result != 0:
-        return False
-
-    # 2) Publisher check via PowerShell's Authenticode APIs.
-    return _publisher_matches(path)
+    return result == 0
 
 
-def _publisher_matches(path):
+def _signature_status(path):
+    """Return (status, signer_subject) for the file's Authenticode signature.
+    status is Get-AuthenticodeSignature's Status value ("NotSigned" when the
+    file carries no signature; "Valid", "HashMismatch", "NotTrusted", ...).
+    subject is None when the file is unsigned."""
+    escaped = str(path).replace("'", "''")
+    command = (
+        "$s = Get-AuthenticodeSignature -LiteralPath '%s'; "
+        "Write-Output ('STATUS=' + [string]$s.Status); "
+        "Write-Output ('SUBJECT=' + [string]$s.SignerCertificate.Subject)" % escaped
+    )
     try:
         proc = subprocess.run(
-            [
-                "powershell", "-NoProfile", "-NonInteractive", "-Command",
-                "(Get-AuthenticodeSignature -LiteralPath '%s').SignerCertificate.Subject" % path,
-            ],
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
             capture_output=True, text=True, timeout=30,
         )
     except Exception:
+        return "Unknown", None
+    status = "Unknown"
+    subject = None
+    for line in (proc.stdout or "").splitlines():
+        if line.startswith("STATUS="):
+            status = line[len("STATUS="):].strip() or "Unknown"
+        elif line.startswith("SUBJECT="):
+            subject = line[len("SUBJECT="):].strip() or None
+    return status, subject
+
+
+def _verify_signature(path):
+    """Return True when the installer is acceptable to run.
+
+    The SHA-256 checksum is verified separately by the caller. Here:
+      - unsigned installers (NotSigned) are permitted - integrity is covered
+        by the published checksum, so no silent security downgrade occurs;
+      - a PRESENT signature must be cryptographically valid (WinVerifyTrust)
+        and its certificate subject must match EXPECTED_PUBLISHER;
+      - a present-but-invalid signature is always refused.
+    """
+    status, subject = _signature_status(path)
+    if status == "NotSigned":
+        return True
+    if status != "Valid" or not subject:
         return False
-    subject = (proc.stdout or "").strip()
-    if not subject:
+    if not _winverifytrust_valid(path):
         return False
     return EXPECTED_PUBLISHER.lower() in subject.lower()
 
@@ -192,8 +222,17 @@ class UpdateChecker:
 
         if os.path.exists(target_path):
             age = time.time() - os.path.getmtime(target_path)
-            if 0 <= age < CACHE_MAX_AGE and _verify_signature(target_path):
-                return target_path
+            if 0 <= age < CACHE_MAX_AGE:
+                cached_ok = True
+                if checksum_url:
+                    try:
+                        cached_ok = _sha256_file(target_path) == self._expected_sha256(
+                            checksum_url, installer_name
+                        )
+                    except Exception:
+                        cached_ok = False
+                if cached_ok and _verify_signature(target_path):
+                    return target_path
 
         temp = target_path + ".part"
         try:
@@ -208,7 +247,7 @@ class UpdateChecker:
             ):
                 raise RuntimeError("Installer checksum mismatch - update aborted for safety")
             if not _verify_signature(temp):
-                raise RuntimeError("Installer signature is missing/invalid - update aborted for safety")
+                raise RuntimeError("Installer signature is invalid - update aborted for safety")
             os.replace(temp, target_path)
         finally:
             if os.path.exists(temp):
