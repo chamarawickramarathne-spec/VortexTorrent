@@ -1,59 +1,55 @@
-# Vortex Torrent - Build Plan (v1.9.0, mod 10)
+# Vortex Torrent - Build Plan (v1.10.0, mod 11)
 
 ## Goal
-Delete the hidden `.parts` part-files libtorrent leaves behind in download
-folders after (selective) downloads finish, and fix hybrid-torrent priority
-misalignment caused by BEP 52 pad files.
+Add a max-active-downloads queue and harden the application's security
+(update channel integrity, settings validation, active-slot accounting).
 
-## Research
-- libtorrent stores skipped-file portions of shared pieces in
-  `<save_path>\.<info-hash-hex>.parts` (`part_file_dir=''` default) and never
-  deletes them when redundant (upstream issues #1967/#7603).
-- Python bindings 2.1.1 expose NO `delete_part_file()` / remove-flag, so the
-  app must delete the file itself.
-- Instrumented probes proved: the partfile is written LAZILY and libtorrent
-  RECREATES it from its write-back cache after external deletion (post-pause
-  flush lands ~0.4s after `torrent_finished_alert`), so one-shot deletion
-  always fails -> cleanup must be retry-based.
-- BEP 52 hybrids insert pad files into `file_storage`, shifting user file
-  priorities onto wrong files; pads must be filtered for display and given
-  priority 0 during expansion.
-
-## Policy Decisions (user-approved)
-- Always delete `.parts` once a torrent completes - even if some files were
-  skipped; re-selecting later simply re-downloads.
-- Full release cycle: version bump + docs + marketing + build.bat.
+## Policy Decisions (user-approved via audit)
+- Update channel: verify SHA-256 (when a published checksum asset exists) AND
+  verify the Authenticode signature (WinVerifyTrust + publisher match) before
+  launching an installer; only ever offer NEWER versions (never downgrade).
+- Settings: validate/coerce all `settings.json` keys, clamp `port` to
+  1024-65535 and `download_rate`/`max_active_downloads` to >= 0, back up a
+  corrupt file to `settings.json.bak` instead of silent fallback.
+- Queue accounting: a magnet paused while `awaiting_files=True` does NOT
+  consume an active-download slot (it performs no download).
 
 ## Tasks
 
-### 1. Cleanup helpers (`core/partfile.py`)
-- [x] Hash hexes via `info_hashes().v1/.v2/.get_best()`.
-- [x] `ready_for_cleanup`: complete AND paused/finished/seeding.
-- [x] Retry queue: `queue_cleanup` + `drain_orphans` (200 tries x 50ms);
-      items are NEVER dropped early (recreation race).
+### 1. Max-active-downloads queue (`core/engine.py`, `core/models.py`, `core/config.py`, `ui/dialogs.py`, `ui/main_window.py`)
+- [x] `max_active_downloads` setting (0 = unlimited) in defaults/UI/save.
+- [x] `engine.start`/`set_max_active_downloads` enforce queue via
+      `_slot_available`/`_count_active`/`_promote_next`.
+- [x] `.torrent` adds pause+`queued` when full; promote on pause/remove/finish/tick.
+- [x] Magnet `activate()` re-queues after file selection when full.
+- [x] Manual resume/pause/resume_all always win (may exceed the limit).
+- [x] `_count_active` EXCLUDES `awaiting_files` torrents.
 
-### 2. Pad-file mapping (`core/filemap.py`)
-- [x] `visible_files` filters pads via `file_flags(i) & flag_pad_file`.
-- [x] `expand_priorities` inserts priority 0 for pads.
+### 2. Update channel hardening (`updater.py`, `ui/main_window.py`)
+- [x] `UpdateChecker.check(current)` returns only tags NEWER than current.
+- [x] `download_installer` verifies SHA-256 vs published `.sha256` asset when
+      present, then verifies Authenticode via WinVerifyTrust + signing-cert
+      publisher match (`EXPECTED_PUBLISHER`) before launch.
+- [x] Reuses a fresh cached, already-signed installer.
+- [x] `cleanup_stale` removes old `VortexTorrent-Setup-*.exe` copies.
+- [x] UI offers only newer versions; runs the verified installer.
 
-### 3. Engine wiring (`core/engine.py`)
-- [x] Queue candidate paths on save_resume_data / cache_flushed alerts and on
-      remove(keep data); `_alert_loop` drains every tick; `stop()` drains
-      synchronously up to 5s.
-- [x] Finished torrents: pause + `save_resume_data(flush_disk_cache)`.
+### 3. Settings hardening (`core/config.py`, `ui/dialogs.py`)
+- [x] `load_settings` validates/coerces every key + clamps ranges.
+- [x] Corrupt `settings.json` backed up to `.bak` (no silent discard).
+- [x] `SettingsDialog._save` clamps port range + non-negative rate + non-empty folder.
 
-### 4. Test (`tests/test_partfile_cleanup.py`)
-- [x] e2e vs localhost seeder: v1 selective/full + hybrid selective;
-      16 checks - all pass (two consecutive runs).
+### 4. Tests
+- [x] `tests/test_active_limit.py` e2e (max_active=1 queue scenarios) - PASS.
+- [x] `tests/test_partfile_cleanup.py` regression - PASS.
 
 ### 5. Release
-- [x] APP_VERSION + installer.iss -> 1.9.0.
-- [x] AGENTS.md mod 10 entry.
+- [x] APP_VERSION + installer.iss + VERSION -> 1.10.0.
+- [x] AGENTS.md mod 11 entry.
 - [x] Regenerate medial_support.txt.
 - [x] build.bat (x64 + x86 exe + combined installer).
-- [x] Git commit + tag v1.9.0 + GitHub release with VortexTorrent-Setup.exe.
+- [x] Git commit + tag v1.10.0 + GitHub release with VortexTorrent-Setup.exe.
 
 ## Status
-- COMPLETE - e2e test passes (2 consecutive runs); artifacts verified:
-  dist\VortexTorrent.exe (x64), dist32\VortexTorrent.exe (x86),
-  installer\VortexTorrent-Setup.exe (29.6 MB combined).
+- COMPLETE - e2e tests pass; artifacts verified: dist\VortexTorrent.exe (x64),
+  dist32\VortexTorrent.exe (x86), installer\VortexTorrent-Setup.exe (combined).

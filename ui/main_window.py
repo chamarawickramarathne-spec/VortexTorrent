@@ -14,7 +14,7 @@ from ui import theme
 from ui.dialogs import AboutDialog, FileSelectDialog, MagnetDialog, SettingsDialog
 from updater import UpdateChecker
 
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.10.0"
 GITHUB_URL = "https://github.com/chamarawickramarathne-spec/VortexTorrent"
 
 
@@ -74,6 +74,7 @@ class MainWindow(ctk.CTk):
             port=self.settings["port"],
             download_rate=self.settings["download_rate"],
             upload_rate=0,
+            max_active_downloads=self.settings["max_active_downloads"],
         )
         self.bind("<Control-o>", lambda e: self._add_torrent_file())
         self.bind("<Control-m>", lambda e: self._add_magnet())
@@ -95,7 +96,7 @@ class MainWindow(ctk.CTk):
             ctk.CTkLabel(header, image=img, text="").pack(side="left", padx=(16, 10), pady=12)
 
         title_block = ctk.CTkFrame(header, fg_color="transparent")
-        title_block.pack(side="left")
+        title_block.pack(side="left", padx=(4, 8), pady=8)
         title_row = ctk.CTkFrame(title_block, fg_color="transparent")
         title_row.pack(anchor="w")
         ctk.CTkLabel(title_row, text="Vortex Torrent", font=theme.font(18, "bold"), text_color=theme.TEXT).pack(side="left")
@@ -230,7 +231,7 @@ class MainWindow(ctk.CTk):
             return
         self._file_dialog_shown.add(torrent_id)
         if len(files) <= 1:
-            self.engine.resume(torrent_id)
+            self.engine.activate(torrent_id)
             return
         snap = self._last_snapshot.get(torrent_id)
         title = (snap or {}).get("name") or "Select files"
@@ -241,7 +242,7 @@ class MainWindow(ctk.CTk):
                 self.engine.set_file_priorities(torrent_id, dialog.result)
             except Exception as exc:
                 messagebox.showerror("Selection failed", str(exc), parent=self)
-        self.engine.resume(torrent_id)
+        self.engine.activate(torrent_id)
 
     def _create_row(self, torrent_id):
         if torrent_id in self._row_widgets:
@@ -405,6 +406,7 @@ class MainWindow(ctk.CTk):
         os.makedirs(self.settings["download_dir"], exist_ok=True)
         self.engine.apply_speed_limits(self.settings["download_rate"])
         self.engine.apply_port(self.settings["port"])
+        self.engine.set_max_active_downloads(self.settings["max_active_downloads"])
 
     def _open_about(self):
         AboutDialog(self, APP_VERSION)
@@ -415,21 +417,21 @@ class MainWindow(ctk.CTk):
 
     def _manual_update_worker(self):
         try:
-            latest = UpdateChecker().check()
+            latest = UpdateChecker().check(APP_VERSION)
         except Exception:
             self.after(0, lambda: messagebox.showerror("Update check failed", "Could not reach GitHub. Check your connection.", parent=self))
             return
-        if latest == APP_VERSION:
+        if latest is None:
             self.after(0, lambda: messagebox.showinfo("Up to date", "You are running the latest version (%s)." % APP_VERSION, parent=self))
         else:
             self.after(0, lambda: self._offer_update(latest))
 
     def _check_update_bg(self):
         try:
-            latest = UpdateChecker().check()
+            latest = UpdateChecker().check(APP_VERSION)
         except Exception:
             return
-        if latest and latest != APP_VERSION:
+        if latest:
             self.after(2000, lambda: self._offer_update(latest) if not self._closing else None)
 
     def _offer_update(self, version):
@@ -444,8 +446,13 @@ class MainWindow(ctk.CTk):
                 messagebox.showerror("Update failed", str(exc), parent=self)
 
     def _download_and_install(self, version):
-        installer = os.path.join(self.config_dir, "VortexTorrent-Setup-%s.exe" % version)
-        UpdateChecker().download_installer(version, installer)
+        checker = UpdateChecker()
+        installer = os.path.join(self.config_dir, "VortexTorrent-Setup.exe")
+        try:
+            checker.download_installer(installer)
+            checker.cleanup_stale(self.config_dir, os.path.basename(installer))
+        except Exception as exc:
+            raise RuntimeError(str(exc))
         self.engine.stop()
         self.destroy()
         subprocess.Popen([installer])

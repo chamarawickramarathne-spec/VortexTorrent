@@ -10,6 +10,8 @@ class TorrentEntry:
         self.source = source
         self.added_at = time.time()
         self.error = None
+        self.queued = False
+        self.awaiting_files = False
 
     @property
     def id(self):

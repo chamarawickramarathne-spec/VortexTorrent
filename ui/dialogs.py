@@ -140,6 +140,13 @@ class SettingsDialog(ctk.CTkToplevel):
         self.port_var = ctk.StringVar(value=str(self.settings["port"]))
         ctk.CTkEntry(port_row, textvariable=self.port_var, width=120, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
 
+        active_row = ctk.CTkFrame(frame, fg_color="transparent")
+        active_row.pack(fill="x", pady=(8, 4))
+        ctk.CTkLabel(active_row, text="Active downloads", font=theme.font(12)).pack(side="left")
+        self.active_var = ctk.StringVar(value=str(self.settings["max_active_downloads"]))
+        ctk.CTkEntry(active_row, textvariable=self.active_var, width=120, fg_color=theme.BG, border_color=theme.BORDER).pack(side="right")
+        ctk.CTkLabel(active_row, text="0 = unlimited").pack(side="right", padx=(0, 10))
+
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(anchor="e", pady=(14, 0))
         ctk.CTkButton(btn_frame, text="Cancel", fg_color=theme.PANEL_HOVER, hover_color=theme.BORDER, command=self.destroy, width=90).pack(side="left", padx=6)
@@ -152,13 +159,29 @@ class SettingsDialog(ctk.CTkToplevel):
 
     def _save(self):
         try:
-            self.settings["download_dir"] = self.dir_var.get().strip()
-            self.settings["download_rate"] = int(self.down_var.get()) * 1024
-            self.settings["port"] = int(self.port_var.get())
+            download_dir = self.dir_var.get().strip()
+            download_rate = int(self.down_var.get()) * 1024
+            port = int(self.port_var.get())
+            max_active = int(self.active_var.get())
         except ValueError:
             import tkinter as tk
             tk.messagebox.showerror("Invalid input", "Limits and port must be numbers.", parent=self)
             return
+        if not download_dir:
+            import tkinter as tk
+            tk.messagebox.showerror("Invalid input", "Download folder cannot be empty.", parent=self)
+            return
+        if max_active < 0:
+            import tkinter as tk
+            tk.messagebox.showerror("Invalid input", "Active downloads cannot be negative.", parent=self)
+            return
+        # Clamp to a valid listening port range and non-negative rate limit.
+        port = min(65535, max(1024, port))
+        download_rate = max(0, download_rate)
+        self.settings["download_dir"] = download_dir
+        self.settings["download_rate"] = download_rate
+        self.settings["port"] = port
+        self.settings["max_active_downloads"] = max_active
         self.result = self.settings
         self.destroy()
 

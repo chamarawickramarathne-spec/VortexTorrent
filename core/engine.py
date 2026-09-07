@@ -32,8 +32,10 @@ class TorrentEngine:
         self.on_alert = on_alert
         self._files_ready = []
         self._orphan_parts = []
+        self.max_active = 2
 
-    def start(self, port=6881, download_rate=0, upload_rate=0):
+    def start(self, port=6881, download_rate=0, upload_rate=0, max_active_downloads=2):
+        self.max_active = max(0, int(max_active_downloads))
         settings = {
             "listen_interfaces": "0.0.0.0:%d" % port,
             "enable_dht": True,
@@ -59,6 +61,7 @@ class TorrentEngine:
                 self._handle_alert(alert)
             with self.lock:
                 partfile.drain_orphans(self._orphan_parts)
+            self._promote_next()
             time.sleep(0.05)
 
     def _handle_alert(self, alert):
@@ -67,6 +70,7 @@ class TorrentEngine:
                 entry = self.torrents.get(str(alert.handle.info_hash()))
                 if entry:
                     entry.name = alert.handle.name()
+                    entry.awaiting_files = True
                     self._files_ready.append(entry.id)
             alert.handle.pause()
         elif isinstance(alert, lt.torrent_error_alert):
@@ -87,6 +91,7 @@ class TorrentEngine:
         elif isinstance(alert, lt.torrent_finished_alert):
             alert.handle.pause()
             alert.handle.save_resume_data(lt.torrent_handle.flush_disk_cache)
+            self._promote_next()
         if self.on_alert:
             self.on_alert(alert)
 
@@ -103,12 +108,14 @@ class TorrentEngine:
         if priorities is not None:
             params.file_priorities = filemap.expand_priorities(info.files(), priorities)
         params.flags &= ~lt.torrent_flags.auto_managed
-        if not paused:
-            params.flags &= ~lt.torrent_flags.paused
-        else:
+        queued = not paused and not self._slot_available()
+        if queued or paused:
             params.flags |= lt.torrent_flags.paused
+        else:
+            params.flags &= ~lt.torrent_flags.paused
         handle = self.session.add_torrent(params)
-        return self._register(handle, save_path, "file", resumed=resumed)
+        return self._register(handle, save_path, "file", resumed=resumed,
+                              queued=queued)
 
     def add_magnet(self, uri, save_path, paused=False):
         parsed = lt.parse_magnet_uri(uri)
@@ -169,7 +176,7 @@ class TorrentEngine:
         with open(resume_file, "rb") as f:
             return lt.read_resume_data(f.read())
 
-    def _register(self, handle, save_path, source, resumed=False):
+    def _register(self, handle, save_path, source, resumed=False, queued=False):
         entry = TorrentEntry(
             handle,
             handle.name() or "Fetching metadata...",
@@ -177,6 +184,7 @@ class TorrentEngine:
             save_path,
             source,
         )
+        entry.queued = queued
         with self.lock:
             self.torrents[entry.id] = entry
         if resumed:
@@ -197,18 +205,39 @@ class TorrentEngine:
                     self._orphan_parts, entry.handle, entry.save_path
                 )
             self.session.remove_torrent(entry.handle)
+        self._promote_next()
 
     def pause(self, torrent_id):
         with self.lock:
             entry = self.torrents.get(torrent_id)
         if entry:
+            entry.queued = False
             entry.handle.save_resume_data()
             entry.handle.pause()
+            self._promote_next()
 
     def resume(self, torrent_id):
         with self.lock:
             entry = self.torrents.get(torrent_id)
         if entry:
+            entry.queued = False
+            entry.awaiting_files = False
+            entry.handle.resume()
+
+    def activate(self, torrent_id):
+        """Resume after file selection unless the active limit is reached."""
+        with self.lock:
+            entry = self.torrents.get(torrent_id)
+        if entry is None:
+            return
+        entry.awaiting_files = False
+        with self.lock:
+            others = [e for e in self.torrents.values() if e.id != torrent_id]
+            if not self._slot_available(others):
+                entry.queued = True
+                entry.handle.pause()
+                return
+            entry.queued = False
             entry.handle.resume()
 
     def pause_all(self):
@@ -222,6 +251,58 @@ class TorrentEngine:
             handles = [e.handle for e in self.torrents.values()]
         for h in handles:
             h.resume()
+
+    def set_max_active_downloads(self, n):
+        self.max_active = max(0, int(n))
+        self._promote_next()
+
+    def _slot_available(self, entries=None):
+        """True when another torrent may start (0 = unlimited).
+
+        Callers already holding self.lock MUST pass entries to avoid
+        re-acquiring the non-reentrant lock.
+        """
+        if self.max_active <= 0:
+            return True
+        if entries is None:
+            with self.lock:
+                entries = list(self.torrents.values())
+        return self._count_active(entries) < self.max_active
+
+    def _count_active(self, entries):
+        active = 0
+        for entry in entries:
+            if entry.queued:
+                continue
+            # A magnet paused while awaiting user file selection performs no
+            # download and must not occupy an active-download slot.
+            if entry.awaiting_files:
+                continue
+            try:
+                st = entry.handle.status()
+            except RuntimeError:
+                continue
+            if st.paused and not entry.awaiting_files:
+                continue
+            total = st.total_wanted or 0
+            if not st.paused and total > 0 and st.total_wanted_done >= total:
+                continue
+            active += 1
+        return active
+
+    def _promote_next(self):
+        if self.max_active <= 0:
+            return
+        with self.lock:
+            entries = list(self.torrents.values())
+        if self._count_active(entries) >= self.max_active:
+            return
+        with self.lock:
+            for entry in entries:
+                if entry.queued:
+                    entry.queued = False
+                    entry.handle.resume()
+                    break
 
     def apply_speed_limits(self, download_rate):
         self.session.apply_settings(
@@ -272,6 +353,8 @@ class TorrentEngine:
             progress = st.progress
             if total and done >= total:
                 state = "Completed"
+            if entry.queued:
+                state = "Queued"
             if st.total_wanted:
                 eta_secs = self._eta(st)
             else:
