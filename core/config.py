@@ -41,6 +41,14 @@ def _coerce(settings):
     download_dir = settings.get("download_dir")
     if not isinstance(download_dir, str) or not download_dir.strip():
         settings["download_dir"] = DEFAULT_SETTINGS["download_dir"]
+    else:
+        resolved = os.path.realpath(download_dir)
+        # Reject UNC paths (\\server\share) to prevent writes to
+        # unexpected network locations.
+        if resolved.startswith("\\\\"):
+            settings["download_dir"] = DEFAULT_SETTINGS["download_dir"]
+        else:
+            settings["download_dir"] = resolved
     return settings
 
 

@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 
 import customtkinter as ctk
@@ -170,6 +171,11 @@ class SettingsDialog(ctk.CTkToplevel):
         if not download_dir:
             import tkinter as tk
             tk.messagebox.showerror("Invalid input", "Download folder cannot be empty.", parent=self)
+            return
+        download_dir = os.path.realpath(download_dir)
+        if download_dir.startswith("\\\\"):
+            import tkinter as tk
+            tk.messagebox.showerror("Invalid input", "UNC network paths are not allowed.", parent=self)
             return
         if max_active < 0:
             import tkinter as tk

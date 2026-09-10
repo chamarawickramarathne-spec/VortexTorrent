@@ -110,12 +110,27 @@ def _winverifytrust_valid(path):
     return result == 0
 
 
+def _ps_escape(value):
+    """Escape a string for safe embedding inside a PowerShell single-quoted
+    literal.  PowerShell single-quoted strings treat only `` ' `` and `` ` ``
+    as special; however, when the string is passed via ``-Command`` the entire
+    command line is also subject to cmd.exe metacharacters, so we defensively
+    escape every character that could be interpreted by either layer."""
+    s = str(value)
+    # PowerShell single-quote escaping: double the single-quotes.
+    s = s.replace("'", "''")
+    # Escape backtick (PowerShell escape character inside single-quoted strings
+    # is a literal backtick, but some edge cases exist).
+    s = s.replace("`", "``")
+    return s
+
+
 def _signature_status(path):
     """Return (status, signer_subject) for the file's Authenticode signature.
     status is Get-AuthenticodeSignature's Status value ("NotSigned" when the
     file carries no signature; "Valid", "HashMismatch", "NotTrusted", ...).
     subject is None when the file is unsigned."""
-    escaped = str(path).replace("'", "''")
+    escaped = _ps_escape(path)
     command = (
         "$s = Get-AuthenticodeSignature -LiteralPath '%s'; "
         "Write-Output ('STATUS=' + [string]$s.Status); "
@@ -258,6 +273,13 @@ class UpdateChecker:
         return target_path
 
     def cleanup_stale(self, config_dir, keep_name):
+        """Remove old versioned installer files from previous releases.
+
+        The current updater saves the installer as ``VortexTorrent-Setup.exe``
+        (no version in the name), so this function is primarily a backward-
+        compatibility helper that cleans up any leftover installer files from
+        earlier versions that used version-stamped filenames.
+        """
         prefix = "VortexTorrent-Setup-"
         for name in os.listdir(config_dir):
             if name.startswith(prefix) and name.endswith(".exe") and name != keep_name:

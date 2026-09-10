@@ -1,5 +1,5 @@
 #define MyAppName "Vortex Torrent"
-#define MyAppVersion "1.10.0"
+#define MyAppVersion "1.11.0"
 #define MyAppPublisher "Vortex"
 #define MyAppExeName "VortexTorrent.exe"
 

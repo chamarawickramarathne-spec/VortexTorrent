@@ -9,6 +9,7 @@ dist32/
 installer/
 *.spec
 settings.json
+settings.json.bak
 *.log
 media/*.jpeg
 media/logo - Copy.png

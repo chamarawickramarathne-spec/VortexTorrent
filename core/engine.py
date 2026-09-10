@@ -1,3 +1,10 @@
+"""libtorrent session wrapper with threaded alert loop.
+
+Core engine that manages the BitTorrent session, torrent lifecycle,
+and part-file cleanup orchestration. Queue management is delegated to
+core.queue and snapshot/resume logic to core.torrent_ops.
+"""
+
 import os
 import threading
 import time
@@ -7,17 +14,8 @@ import libtorrent as lt
 from core import filemap
 from core import partfile
 from core.models import TorrentEntry
-
-STATE_NAMES = {
-    lt.torrent_status.states.queued_for_checking: "Queued",
-    lt.torrent_status.states.checking_files: "Checking",
-    lt.torrent_status.states.checking_resume_data: "Checking resume",
-    lt.torrent_status.states.downloading_metadata: "Fetching metadata",
-    lt.torrent_status.states.downloading: "Downloading",
-    lt.torrent_status.states.allocating: "Allocating",
-    lt.torrent_status.states.finished: "Finished",
-    lt.torrent_status.states.seeding: "Seeding",
-}
+from core import queue as q
+from core import torrent_ops
 
 
 class TorrentEngine:
@@ -79,7 +77,10 @@ class TorrentEngine:
                 if entry:
                     entry.error = alert.message()
         elif isinstance(alert, lt.save_resume_data_alert):
-            self._persist_resume(alert)
+            torrent_ops.persist_resume(
+                alert, self.resume_dir, self.torrents,
+                self.lock, self._orphan_parts,
+            )
         elif isinstance(alert, lt.cache_flushed_alert):
             with self.lock:
                 entry = self.torrents.get(str(alert.handle.info_hash()))
@@ -233,7 +234,7 @@ class TorrentEngine:
         entry.awaiting_files = False
         with self.lock:
             others = [e for e in self.torrents.values() if e.id != torrent_id]
-            if not self._slot_available(others):
+            if not q.slot_available(others, self.max_active):
                 entry.queued = True
                 entry.handle.pause()
                 return
@@ -257,133 +258,28 @@ class TorrentEngine:
         self._promote_next()
 
     def _slot_available(self, entries=None):
-        """True when another torrent may start (0 = unlimited).
-
-        Callers already holding self.lock MUST pass entries to avoid
-        re-acquiring the non-reentrant lock.
-        """
-        if self.max_active <= 0:
-            return True
+        """True when another torrent may start (0 = unlimited)."""
         if entries is None:
             with self.lock:
                 entries = list(self.torrents.values())
-        return self._count_active(entries) < self.max_active
-
-    def _count_active(self, entries):
-        active = 0
-        for entry in entries:
-            if entry.queued:
-                continue
-            # A magnet paused while awaiting user file selection performs no
-            # download and must not occupy an active-download slot.
-            if entry.awaiting_files:
-                continue
-            try:
-                st = entry.handle.status()
-            except RuntimeError:
-                continue
-            if st.paused and not entry.awaiting_files:
-                continue
-            total = st.total_wanted or 0
-            if not st.paused and total > 0 and st.total_wanted_done >= total:
-                continue
-            active += 1
-        return active
+        return q.slot_available(entries, self.max_active)
 
     def _promote_next(self):
-        if self.max_active <= 0:
-            return
         with self.lock:
             entries = list(self.torrents.values())
-        if self._count_active(entries) >= self.max_active:
-            return
-        with self.lock:
-            for entry in entries:
-                if entry.queued:
-                    entry.queued = False
-                    entry.handle.resume()
-                    break
+        q.promote_next(entries, self.max_active)
 
     def apply_speed_limits(self, download_rate):
-        self.session.apply_settings(
-            {
-                "download_rate_limit": int(download_rate),
-            }
-        )
+        self.session.apply_settings({"download_rate_limit": int(download_rate)})
 
     def apply_port(self, port):
         self.session.apply_settings({"listen_interfaces": "0.0.0.0:%d" % port})
 
     def save_all_resume_data(self):
-        with self.lock:
-            handles = [e.handle for e in self.torrents.values()]
-        for h in handles:
-            h.save_resume_data()
-
-    def _persist_resume(self, alert):
-        if not hasattr(alert, "resume_data"):
-            return
-        ih = str(alert.handle.info_hash())
-        target = os.path.join(self.resume_dir, "%s.fastresume" % ih)
-        data = lt.bencode(alert.resume_data)
-        with open(target, "wb") as f:
-            f.write(data)
-        with self.lock:
-            entry = self.torrents.get(ih)
-        if entry:
-            with self.lock:
-                partfile.queue_cleanup(
-                    self._orphan_parts, entry.handle, entry.save_path
-                )
+        torrent_ops.save_all_resume_data(self.torrents, self.lock)
 
     def snapshot(self):
-        snap = []
-        with self.lock:
-            entries = list(self.torrents.values())
-        for entry in entries:
-            try:
-                st = entry.handle.status()
-            except RuntimeError:
-                continue
-            state = STATE_NAMES.get(st.state, "Idle")
-            if st.paused:
-                state = "Paused"
-            total = st.total_wanted or st.total
-            done = st.total_wanted_done
-            progress = st.progress
-            if total and done >= total:
-                state = "Completed"
-            if entry.queued:
-                state = "Queued"
-            if st.total_wanted:
-                eta_secs = self._eta(st)
-            else:
-                eta_secs = 0
-            snap.append(
-                {
-                    "id": entry.id,
-                    "name": entry.name or st.name,
-                    "size": total,
-                    "done": done,
-                    "progress": progress,
-                    "download_rate": st.download_rate,
-                    "upload_rate": st.upload_payload_rate,
-                    "peers": st.num_peers,
-                    "seeds": st.num_seeds,
-                    "state": state,
-                    "eta": eta_secs,
-                    "error": entry.error,
-                    "save_path": entry.save_path,
-                }
-            )
-        return snap
-
-    def _eta(self, st):
-        rate = st.download_rate
-        if rate <= 0:
-            return 0
-        remaining = st.total_wanted - st.total_wanted_done
-        return remaining / rate
+        return torrent_ops.snapshot(self.torrents, self.lock)
 
     def stop(self):
         self.running = False
